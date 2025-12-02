@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Teacher {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String
+  name        String
+  subject     String
+  image       String
+  location    String
+  hourlyRate  Int
+  isVerified  Boolean   @default(false)
+  bookings    Booking[]
+}
+
+model Student {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  password  String
+  image     String?   // <--- NEW FIELD
+  bookings  Booking[]
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  amount    Int
+  reference String
+  status    String   @default("success")
+  createdAt DateTime @default(now())
+
+  // Relation to Teacher
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+
+  // Relation to Student
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+}
+model Page {
+  id        String   @id @default(uuid())
+  slug      String   @unique  // e.g. "about-us", "terms"
+  title     String
+  content   String   // The text/html of the page
+  updatedAt DateTime @updatedAt
+}
+
+model Package {
+  id          String   @id @default(uuid())
+  name        String   // e.g. "Gold Plan"
+  price       Int
+  description String
+  features    String   // Comma separated list of features
+}
