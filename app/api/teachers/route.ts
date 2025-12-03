@@ -39,6 +39,19 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const teachers = await prisma.teacher.findMany();
-  return NextResponse.json(teachers);
+  try {
+    const teachers = await prisma.teacher.findMany({
+      orderBy: [
+        { isVerified: 'desc' }, // Verified teachers first
+        { sales: 'desc' },      // Then top sellers
+        { rating: 'desc' }      // Then top rated
+      ],
+      include: {
+        bookings: true // To calculate dynamic stats if needed
+      }
+    });
+    return NextResponse.json(teachers);
+  } catch (error) {
+    return NextResponse.json({ error: 'Error fetching teachers' }, { status: 500 });
+  }
 }

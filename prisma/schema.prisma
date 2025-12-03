@@ -8,17 +8,23 @@ datasource db {
 }
 
 model Teacher {
-  id          String    @id @default(uuid())
-  email       String    @unique
-  password    String
-  name        String
-  subject     String
-  image       String
-  location    String
-  hourlyRate  Int
-  isVerified  Boolean   @default(false)
-  bookings    Booking[]
-  courses     Course[]  // <--- NEW: Teacher owns courses
+  id           String    @id @default(uuid())
+  email        String    @unique
+  password     String
+  name         String
+  subject      String
+  image        String
+  location     String
+  hourlyRate   Int
+  isVerified   Boolean   @default(false)
+  
+  // NEW FIELDS
+  hasOnboarded Boolean   @default(false) // True after they finish the popup
+  rating       Float     @default(5.0)   // For "Top Rated"
+  sales        Int       @default(0)     // For "Top Selling"
+
+  bookings     Booking[]
+  courses      Course[]
 }
 
 model Student {
