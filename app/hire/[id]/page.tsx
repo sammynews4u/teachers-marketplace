@@ -20,6 +20,9 @@ export default function HirePage() {
   const [trialDate, setTrialDate] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
 
+  // PAYSTACK KEY
+  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
+
   useEffect(() => {
     // 1. Check Login
     const sid = localStorage.getItem('studentId');
@@ -77,7 +80,7 @@ export default function HirePage() {
         reference: ref,
         type: type,
         scheduledAt: date,
-        courseId: courseId // New field for courses
+        courseId: courseId 
       }),
       headers: { 'Content-Type': 'application/json' }
     });
@@ -89,10 +92,6 @@ export default function HirePage() {
       alert("Booking Failed.");
     }
   };
-
-  // --- PAYSTACK CONFIGS ---
-
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   const hourlyPayProps = {
     email: "student@platform.com",
@@ -124,7 +123,8 @@ export default function HirePage() {
           {/* LEFT SIDE: Teacher Info */}
           <div className="p-8 md:w-5/12 bg-blue-600 text-white flex flex-col">
             <div className="flex-1">
-              <img src={teacher.image} className="w-24 h-24 rounded-full border-4 border-white/30 mb-6 object-cover bg-white" />
+              {/* FIXED: Added 'alt' tag */}
+              <img src={teacher.image} alt={teacher.name} className="w-24 h-24 rounded-full border-4 border-white/30 mb-6 object-cover bg-white" />
               <h1 className="text-3xl font-bold mb-2">{teacher.name}</h1>
               <p className="text-blue-100 text-lg mb-6">{teacher.subject} Expert</p>
               
@@ -243,7 +243,9 @@ export default function HirePage() {
                 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Select Date & Time</label>
+                  {/* FIXED: Added 'aria-label' */}
                   <input 
+                    aria-label="Select Trial Date"
                     type="datetime-local" 
                     className="w-full p-4 border border-gray-300 rounded-xl bg-gray-50 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition"
                     onChange={(e) => setTrialDate(e.target.value)}
