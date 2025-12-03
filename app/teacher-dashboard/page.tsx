@@ -3,10 +3,11 @@
 import Navbar from '../../components/Navbar';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { PaystackButton } from 'react-paystack';
 import { 
   Users, DollarSign, Calendar, Edit2, 
   Clock, MessageSquare, Star, Video, Plus, Trash2, 
-  CheckCircle2, ShieldCheck, ArrowRight 
+  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket 
 } from 'lucide-react';
 
 export default function TeacherDashboard() {
@@ -14,18 +15,21 @@ export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<any>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState('classroom');
+  const [activeTab, setActiveTab] = useState('classroom'); // 'classroom', 'courses', 'boost'
   const [earnings, setEarnings] = useState(0);
 
   // ONBOARDING STATE
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
 
-  // New Course Form State
+  // NEW COURSE FORM STATE
   const [newCourse, setNewCourse] = useState({
     title: '', description: '', price: '', startDate: '', endDate: '', schedule: ''
   });
   const [showCourseForm, setShowCourseForm] = useState(false);
+
+  // PAYSTACK KEY
+  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   useEffect(() => {
     const id = localStorage.getItem('teacherId');
@@ -34,6 +38,7 @@ export default function TeacherDashboard() {
       return;
     }
 
+    // 1. Fetch Teacher Data
     fetch('/api/teacher-dashboard', {
       method: 'POST',
       body: JSON.stringify({ teacherId: id }),
@@ -42,11 +47,12 @@ export default function TeacherDashboard() {
     .then(data => {
       setTeacher(data);
       
-      // TRIGGER ONBOARDING if false
+      // Trigger Onboarding if needed
       if (data.hasOnboarded === false) {
         setShowOnboarding(true);
       }
 
+      // Calculate Earnings (Exclude Trials)
       if(data.bookings) {
         const total = data.bookings.reduce((acc: number, curr: any) => {
           return curr.type === 'trial' ? acc : acc + curr.amount;
@@ -55,14 +61,16 @@ export default function TeacherDashboard() {
       }
     });
 
+    // 2. Fetch Courses
     fetch(`/api/courses?teacherId=${id}`)
       .then(res => res.json())
       .then(data => setCourses(data));
 
   }, []);
 
+  // --- HANDLERS ---
+
   const handleFinishOnboarding = async () => {
-    // Save to DB that they finished
     await fetch('/api/teacher-dashboard', {
       method: 'PUT',
       body: JSON.stringify({ ...teacher, hasOnboarded: true }),
@@ -71,7 +79,7 @@ export default function TeacherDashboard() {
     alert("Welcome aboard! You are now live.");
   };
 
-  const handleUpdate = async () => {
+  const handleUpdateProfile = async () => {
     await fetch('/api/teacher-dashboard', {
       method: 'PUT',
       body: JSON.stringify(teacher),
@@ -80,127 +88,90 @@ export default function TeacherDashboard() {
     alert("Profile Updated Successfully!");
   };
 
-  // ... (Course Create/Delete functions remain the same) ...
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     const res = await fetch('/api/courses', {
       method: 'POST',
       body: JSON.stringify({ ...newCourse, teacherId: teacher.id }),
     });
+
     if (res.ok) {
-      alert("Course Created!");
+      alert("Course Created Successfully!");
       setShowCourseForm(false);
+      // Refresh list
       fetch(`/api/courses?teacherId=${teacher.id}`).then(r => r.json()).then(setCourses);
+    } else {
+      alert("Failed to create course.");
     }
   };
 
   const handleDeleteCourse = async (id: string) => {
-    if(!confirm("Delete this course?")) return;
+    if(!confirm("Are you sure you want to delete this course?")) return;
     await fetch('/api/courses', { method: 'DELETE', body: JSON.stringify({ id }) });
     fetch(`/api/courses?teacherId=${teacher.id}`).then(r => r.json()).then(setCourses);
   };
-  // ... (End Course functions) ...
+
+  const handlePackageSuccess = async (reference: any, plan: string, amount: number) => {
+    const res = await fetch('/api/packages/purchase', {
+      method: 'POST',
+      body: JSON.stringify({
+        teacherId: teacher.id,
+        plan,
+        amount,
+        reference: reference.reference
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (res.ok) {
+      alert(`Success! You are now on the ${plan.toUpperCase()} Plan.`);
+      window.location.reload(); 
+    }
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
     return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
   };
 
-  if (!teacher) return <div className="p-20 text-center text-blue-600 font-bold">Loading...</div>;
+  if (!teacher) return <div className="p-20 text-center text-blue-600 font-bold">Loading Dashboard...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
       <Navbar />
 
-      {/* --- ONBOARDING POPUP MODAL --- */}
+      {/* --- ONBOARDING MODAL --- */}
       {showOnboarding && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
-            
-            {/* Header Image/Color */}
             <div className="h-32 bg-blue-600 flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-blue-700 opacity-50 pattern-grid-lg"></div>
               <ShieldCheck className="text-white w-16 h-16 relative z-10" />
             </div>
-
             <div className="p-8">
-              {/* STEP 1: WELCOME */}
               {onboardingStep === 1 && (
                 <div className="text-center space-y-4">
                   <h2 className="text-2xl font-bold text-gray-900">Welcome, Teacher! 👋</h2>
-                  <p className="text-gray-500">
-                    We are thrilled to have you. Before you start teaching, let's take 30 seconds to show you how to succeed on <strong>TeachersB</strong>.
-                  </p>
-                  <button 
-                    onClick={() => setOnboardingStep(2)}
-                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2"
-                  >
-                    Start Tour <ArrowRight size={18} />
-                  </button>
+                  <p className="text-gray-500">Let's get you set up for success on TeachersB.</p>
+                  <button onClick={() => setOnboardingStep(2)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">Start Tour <ArrowRight size={18} /></button>
                 </div>
               )}
-
-              {/* STEP 2: HOW IT WORKS */}
               {onboardingStep === 2 && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-gray-900 text-center">How to Climb the Ranks 🚀</h2>
+                  <h2 className="text-2xl font-bold text-center">How to Succeed 🚀</h2>
                   <div className="space-y-4">
-                    <div className="flex gap-4">
-                      <div className="bg-green-100 p-3 rounded-lg h-fit"><CheckCircle2 className="text-green-600"/></div>
-                      <div>
-                        <h4 className="font-bold">Get Verified</h4>
-                        <p className="text-sm text-gray-500">Complete your profile to get the Blue Badge. Verified teachers get 3x more students.</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="bg-orange-100 p-3 rounded-lg h-fit"><Star className="text-orange-600"/></div>
-                      <div>
-                        <h4 className="font-bold">Get Reviews</h4>
-                        <p className="text-sm text-gray-500">Ask your students to rate you. High ratings = Top of the search results.</p>
-                      </div>
-                    </div>
+                    <div className="flex gap-4"><div className="bg-green-100 p-3 rounded-lg"><CheckCircle2 className="text-green-600"/></div><div><h4 className="font-bold">Get Verified</h4><p className="text-sm text-gray-500">Verified teachers get 3x more students.</p></div></div>
+                    <div className="flex gap-4"><div className="bg-orange-100 p-3 rounded-lg"><Star className="text-orange-600"/></div><div><h4 className="font-bold">Collect Reviews</h4><p className="text-sm text-gray-500">Ask students to rate you after class.</p></div></div>
                   </div>
-                  <button 
-                    onClick={() => setOnboardingStep(3)}
-                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition"
-                  >
-                    Next
-                  </button>
+                  <button onClick={() => setOnboardingStep(3)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Next</button>
                 </div>
               )}
-
-              {/* STEP 3: TERMS & CONDITIONS */}
               {onboardingStep === 3 && (
                 <div className="space-y-4">
-                  <h2 className="text-2xl font-bold text-gray-900 text-center">Terms & Conditions</h2>
-                  <div className="h-40 overflow-y-auto bg-gray-50 p-4 rounded-lg text-xs text-gray-600 border">
-                    <p className="mb-2"><strong>1. Professionalism:</strong> Teachers must maintain a professional standard at all times during video calls.</p>
-                    <p className="mb-2"><strong>2. Payments:</strong> All payments made through the platform take 24 hours to settle in your wallet.</p>
-                    <p className="mb-2"><strong>3. No-Show Policy:</strong> If you miss a scheduled class without 24hr notice, you may be penalized.</p>
-                    <p><strong>4. Verification:</strong> We reserve the right to verify your identity before payouts.</p>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                     <input type="checkbox" id="accept" className="w-5 h-5 text-blue-600" />
-                     <label htmlFor="accept" className="text-sm text-gray-700">I have read and accept the terms.</label>
-                  </div>
-
-                  <button 
-                    onClick={handleFinishOnboarding}
-                    className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition"
-                  >
-                    I Agree & Get Started
-                  </button>
+                  <h2 className="text-2xl font-bold text-center">Terms & Conditions</h2>
+                  <div className="h-32 overflow-y-auto bg-gray-50 p-4 rounded text-xs text-gray-600 border"><p>1. Be professional.<br/>2. No-shows are penalized.<br/>3. Payments settle in 24hrs.</p></div>
+                  <button onClick={handleFinishOnboarding} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">I Agree & Get Started</button>
                 </div>
               )}
-              
-              {/* Step Dots */}
-              <div className="flex justify-center gap-2 mt-6">
-                <div className={`w-2 h-2 rounded-full ${onboardingStep >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
-                <div className={`w-2 h-2 rounded-full ${onboardingStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
-                <div className={`w-2 h-2 rounded-full ${onboardingStep >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
-              </div>
-
             </div>
           </div>
         </div>
@@ -208,18 +179,19 @@ export default function TeacherDashboard() {
 
       
       <div className="pt-24 pb-12 px-4 max-w-7xl mx-auto">
+        
         {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
           <div>
-            <p className="text-gray-500 font-medium mb-1">{getGreeting()},</p>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-gray-500 font-medium">{getGreeting()},</p>
+              {/* PLAN BADGES */}
+              {teacher.plan === 'gold' && <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-yellow-300 flex items-center gap-1"><Crown size={12}/> GOLD MEMBER</span>}
+              {teacher.plan === 'silver' && <span className="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-300 flex items-center gap-1"><ShieldCheck size={12}/> SILVER MEMBER</span>}
+            </div>
             <h1 className="text-4xl font-bold text-gray-900">{teacher.name} 👋</h1>
           </div>
-          <button 
-            onClick={() => { localStorage.removeItem('teacherId'); router.push('/'); }}
-            className="text-red-500 font-medium hover:bg-red-50 px-4 py-2 rounded-lg transition"
-          >
-            Log Out
-          </button>
+          <button onClick={() => { localStorage.removeItem('teacherId'); router.push('/'); }} className="text-red-500 font-medium hover:bg-red-50 px-4 py-2 rounded-lg transition">Log Out</button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -227,7 +199,7 @@ export default function TeacherDashboard() {
           {/* LEFT: Profile & Stats */}
           <div className="space-y-8">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center relative overflow-hidden">
-               <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-r from-blue-600 to-purple-600"></div>
+               <div className={`absolute top-0 left-0 w-full h-20 bg-gradient-to-r ${teacher.plan === 'gold' ? 'from-yellow-400 to-orange-500' : 'from-blue-600 to-purple-600'}`}></div>
                <img src={teacher.image} className="relative w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4 mt-8" />
                
                {isEditing ? (
@@ -235,33 +207,18 @@ export default function TeacherDashboard() {
                     <input value={teacher.name} onChange={e => setTeacher({...teacher, name: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input value={teacher.subject} onChange={e => setTeacher({...teacher, subject: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input type="number" value={teacher.hourlyRate} onChange={e => setTeacher({...teacher, hourlyRate: e.target.value})} className="border p-2 w-full rounded text-sm"/>
-                    <button onClick={handleUpdate} className="bg-green-600 text-white w-full py-2 rounded font-bold text-sm">Save Changes</button>
+                    <button onClick={handleUpdateProfile} className="bg-green-600 text-white w-full py-2 rounded font-bold text-sm">Save Changes</button>
                   </div>
                ) : (
                   <>
-                    <h2 className="text-xl font-bold flex items-center justify-center gap-1">
-                      {teacher.name} 
-                      {teacher.isVerified && <CheckCircle2 size={16} className="text-blue-500" />}
-                    </h2>
+                    <h2 className="text-xl font-bold">{teacher.name}</h2>
                     <p className="text-blue-600 font-medium text-sm">{teacher.subject}</p>
-                    <p className="font-bold mt-2">₦{teacher.hourlyRate}/hr (Base)</p>
+                    <p className="font-bold mt-2">₦{teacher.hourlyRate}/hr</p>
                     <button onClick={() => setIsEditing(true)} className="text-sm text-gray-400 mt-4 underline hover:text-blue-600">Edit Profile</button>
                   </>
                )}
             </div>
             
-            {/* RANKING CARD */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-               <div className="flex justify-between items-center mb-2">
-                 <p className="text-gray-500 text-xs font-bold uppercase">Your Rank</p>
-                 <ShieldCheck size={16} className="text-purple-500" />
-               </div>
-               <p className="text-2xl font-bold text-purple-600">
-                 {teacher.isVerified ? 'Top Teacher 🌟' : 'Newcomer'}
-               </p>
-               <p className="text-xs text-gray-400 mt-1">Verify your profile to climb higher.</p>
-            </div>
-
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                <p className="text-gray-500 text-xs font-bold uppercase">Total Earnings</p>
                <p className="text-2xl font-bold text-green-600">₦{earnings.toLocaleString()}</p>
@@ -270,10 +227,12 @@ export default function TeacherDashboard() {
 
           {/* RIGHT: Content Area */}
           <div className="lg:col-span-2">
+            
             {/* TABS */}
-            <div className="flex gap-4 mb-6 bg-gray-200 p-1 rounded-full w-fit">
-              <button onClick={() => setActiveTab('classroom')} className={`px-6 py-2 rounded-full font-bold transition text-sm ${activeTab === 'classroom' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>Classroom</button>
-              <button onClick={() => setActiveTab('courses')} className={`px-6 py-2 rounded-full font-bold transition text-sm ${activeTab === 'courses' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>My Courses</button>
+            <div className="flex flex-wrap gap-4 mb-6 bg-gray-200 p-1 rounded-2xl w-fit">
+              <button onClick={() => setActiveTab('classroom')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'classroom' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>Classroom</button>
+              <button onClick={() => setActiveTab('courses')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'courses' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>My Courses</button>
+              <button onClick={() => setActiveTab('boost')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'boost' ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>🚀 Boost Profile</button>
             </div>
 
             {/* TAB 1: CLASSROOM */}
@@ -290,6 +249,7 @@ export default function TeacherDashboard() {
                              <p className="font-bold text-gray-900">{b.student?.name}</p>
                              <div className="flex gap-2">
                                 <span className="text-xs text-gray-500">{b.type === 'trial' ? 'Free Trial' : 'Paid Student'}</span>
+                                {b.scheduledAt && <span className="text-xs text-orange-500 font-bold">Scheduled: {new Date(b.scheduledAt).toLocaleDateString()}</span>}
                              </div>
                            </div>
                          </div>
@@ -342,6 +302,79 @@ export default function TeacherDashboard() {
                 </div>
               </div>
             )}
+
+            {/* TAB 3: BOOST PROFILE */}
+            {activeTab === 'boost' && (
+              <div className="space-y-6 animate-in fade-in">
+                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                  <h3 className="font-bold text-lg text-blue-900">Why Boost?</h3>
+                  <p className="text-blue-700 text-sm">Boosted profiles appear at the top of search results. Get 5x more students.</p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  
+                  {/* BRONZE */}
+                  <div className="bg-white border-2 border-orange-100 rounded-2xl p-6 hover:shadow-lg transition">
+                    <h4 className="text-orange-800 font-bold uppercase text-sm tracking-wider mb-2">Bronze Plan</h4>
+                    <p className="text-3xl font-bold text-gray-900 mb-4">₦10k</p>
+                    <ul className="text-sm text-gray-600 space-y-2 mb-6">
+                      <li className="flex gap-2"><CheckCircle2 size={16} className="text-green-500"/> Target 3-6 Students</li>
+                      <li className="flex gap-2"><CheckCircle2 size={16} className="text-green-500"/> Standard Visibility</li>
+                    </ul>
+                    {/* @ts-ignore */}
+                    <PaystackButton 
+                      email={teacher.email}
+                      amount={10000 * 100}
+                      publicKey={publicKey}
+                      text="Buy Bronze"
+                      onSuccess={(ref: any) => handlePackageSuccess(ref, 'bronze', 10000)}
+                      className="w-full bg-orange-100 text-orange-700 font-bold py-3 rounded-lg hover:bg-orange-200 transition"
+                    />
+                  </div>
+
+                  {/* SILVER */}
+                  <div className="bg-white border-2 border-gray-300 rounded-2xl p-6 relative hover:shadow-lg transition">
+                    <div className="absolute top-0 right-0 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">POPULAR</div>
+                    <h4 className="text-gray-600 font-bold uppercase text-sm tracking-wider mb-2">Silver Plan</h4>
+                    <p className="text-3xl font-bold text-gray-900 mb-4">₦20k</p>
+                    <ul className="text-sm text-gray-600 space-y-2 mb-6">
+                      <li className="flex gap-2"><CheckCircle2 size={16} className="text-green-500"/> Target 10-15 Students</li>
+                      <li className="flex gap-2"><CheckCircle2 size={16} className="text-green-500"/> <strong>High Visibility</strong></li>
+                    </ul>
+                    {/* @ts-ignore */}
+                    <PaystackButton 
+                      email={teacher.email}
+                      amount={20000 * 100}
+                      publicKey={publicKey}
+                      text="Buy Silver"
+                      onSuccess={(ref: any) => handlePackageSuccess(ref, 'silver', 20000)}
+                      className="w-full bg-gray-700 text-white font-bold py-3 rounded-lg hover:bg-gray-800 transition"
+                    />
+                  </div>
+
+                  {/* GOLD */}
+                  <div className="bg-white border-2 border-yellow-400 rounded-2xl p-6 relative shadow-lg transform scale-105">
+                    <div className="absolute top-0 inset-x-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 text-center uppercase tracking-widest">Best Value</div>
+                    <h4 className="text-yellow-600 font-bold uppercase text-sm tracking-wider mb-2 mt-4">Gold Plan</h4>
+                    <p className="text-3xl font-bold text-gray-900 mb-4">₦30k</p>
+                    <ul className="text-sm text-gray-600 space-y-2 mb-6">
+                      <li className="flex gap-2"><CheckCircle2 size={16} className="text-green-500"/> Target 20-30 Students</li>
+                      <li className="flex gap-2"><CheckCircle2 size={16} className="text-green-500"/> <strong>#1 Top Ranking</strong></li>
+                    </ul>
+                    {/* @ts-ignore */}
+                    <PaystackButton 
+                      email={teacher.email}
+                      amount={30000 * 100}
+                      publicKey={publicKey}
+                      text="Buy Gold"
+                      onSuccess={(ref: any) => handlePackageSuccess(ref, 'gold', 30000)}
+                      className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold py-3 rounded-lg hover:shadow-lg transition"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>

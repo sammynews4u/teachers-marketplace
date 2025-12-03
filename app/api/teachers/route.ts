@@ -42,12 +42,12 @@ export async function GET() {
   try {
     const teachers = await prisma.teacher.findMany({
       orderBy: [
-        { isVerified: 'desc' }, // Verified teachers first
-        { sales: 'desc' },      // Then top sellers
-        { rating: 'desc' }      // Then top rated
+        { ranking: 'desc' },    // 1. Gold/Silver/Bronze come first
+        { isVerified: 'desc' }, // 2. Then Verified teachers
+        { sales: 'desc' }       // 3. Then Top Sellers
       ],
       include: {
-        bookings: true // To calculate dynamic stats if needed
+        bookings: true
       }
     });
     return NextResponse.json(teachers);
