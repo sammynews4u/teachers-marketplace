@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // Ensure this matches your cloud provider (Render/Railway)
   url      = env("DATABASE_URL")
 }
 
@@ -17,12 +17,16 @@ model Teacher {
   location     String
   hourlyRate   Int
   isVerified   Boolean   @default(false)
-  hasOnboarded Boolean   @default(false)
   
-  // NEW FIELDS FOR PACKAGES
-  plan         String    @default("free") // "free", "bronze", "silver", "gold"
-  planExpires  DateTime? // When the ad expires
-  ranking      Int       @default(0)      // Internal score for sorting
+  // Onboarding & Ranking
+  hasOnboarded Boolean   @default(false)
+  rating       Float     @default(5.0)
+  sales        Int       @default(0)
+  
+  // Ads & Plans
+  plan         String    @default("free") // "bronze", "silver", "gold"
+  planExpires  DateTime?
+  ranking      Int       @default(0)
 
   bookings     Booking[]
   courses      Course[]
@@ -33,44 +37,10 @@ model Student {
   name      String
   email     String    @unique
   password  String
-  image     String?   // <--- NEW FIELD
+  image     String?
   bookings  Booking[]
 }
 
-model Booking {
-  id          String   @id @default(uuid())
-  amount      Int
-  reference   String
-  status      String   @default("success") 
-  type        String   @default("paid") 
-  scheduledAt DateTime?
-  createdAt   DateTime @default(now())
-
-  teacherId   String
-  teacher     Teacher  @relation(fields: [teacherId], references: [id])
-  studentId   String
-  student     Student  @relation(fields: [studentId], references: [id])
-  
-  // NEW: Optional link to a specific course
-  courseId    String?
-  course      Course?  @relation(fields: [courseId], references: [id])
-}
-model Page {
-  id        String   @id @default(uuid())
-  slug      String   @unique  // e.g. "about-us", "terms"
-  title     String
-  content   String   // The text/html of the page
-  updatedAt DateTime @updatedAt
-}
-
-model Package {
-  id          String   @id @default(uuid())
-  name        String   // e.g. "Gold Plan"
-  price       Int
-  description String
-  features    String   // Comma separated list of features
-}
-// 2. Add Course Model (NEW)
 model Course {
   id          String    @id @default(uuid())
   title       String
@@ -78,10 +48,48 @@ model Course {
   price       Int
   startDate   DateTime
   endDate     DateTime
-  schedule    String    // e.g. "Mon/Wed 4:00 PM"
+  schedule    String    
   createdAt   DateTime  @default(now())
 
   teacherId   String
   teacher     Teacher   @relation(fields: [teacherId], references: [id])
   bookings    Booking[]
+}
+
+model Booking {
+  id          String   @id @default(uuid())
+  amount      Int
+  reference   String
+  status      String   @default("success") 
+  createdAt   DateTime @default(now())
+  
+  // Booking Type
+  type        String   @default("paid") // "paid", "trial", "course"
+  scheduledAt DateTime? 
+
+  // Relations
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
+  
+  courseId    String?
+  course      Course?  @relation(fields: [courseId], references: [id])
+}
+
+// Admin Stuff
+model Page {
+  id        String   @id @default(uuid())
+  slug      String   @unique 
+  title     String
+  content   String 
+  updatedAt DateTime @updatedAt
+}
+
+model Package {
+  id          String   @id @default(uuid())
+  name        String  
+  price       Int
+  description String
+  features    String 
 }
