@@ -18,6 +18,7 @@ model Teacher {
   hourlyRate  Int
   isVerified  Boolean   @default(false)
   bookings    Booking[]
+  courses     Course[]  // <--- NEW: Teacher owns courses
 }
 
 model Student {
@@ -34,17 +35,18 @@ model Booking {
   amount      Int
   reference   String
   status      String   @default("success") 
+  type        String   @default("paid") 
+  scheduledAt DateTime?
   createdAt   DateTime @default(now())
-  
-  // NEW FIELDS
-  type        String   @default("paid") // "paid" or "trial"
-  scheduledAt DateTime? // The date/time of the call
 
-  // Relations (Keep these the same)
   teacherId   String
   teacher     Teacher  @relation(fields: [teacherId], references: [id])
   studentId   String
   student     Student  @relation(fields: [studentId], references: [id])
+  
+  // NEW: Optional link to a specific course
+  courseId    String?
+  course      Course?  @relation(fields: [courseId], references: [id])
 }
 model Page {
   id        String   @id @default(uuid())
@@ -60,4 +62,19 @@ model Package {
   price       Int
   description String
   features    String   // Comma separated list of features
+}
+// 2. Add Course Model (NEW)
+model Course {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  price       Int
+  startDate   DateTime
+  endDate     DateTime
+  schedule    String    // e.g. "Mon/Wed 4:00 PM"
+  createdAt   DateTime  @default(now())
+
+  teacherId   String
+  teacher     Teacher   @relation(fields: [teacherId], references: [id])
+  bookings    Booking[]
 }

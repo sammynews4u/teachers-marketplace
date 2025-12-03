@@ -5,14 +5,22 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Users, DollarSign, Calendar, Edit2, 
-  Clock, MessageSquare, Star, Video 
+  Clock, MessageSquare, Star, Video, Plus, Trash2 
 } from 'lucide-react';
 
 export default function TeacherDashboard() {
   const router = useRouter();
   const [teacher, setTeacher] = useState<any>(null);
+  const [courses, setCourses] = useState<any[]>([]); // New State
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState('classroom'); // 'classroom' or 'courses'
   const [earnings, setEarnings] = useState(0);
+
+  // New Course Form State
+  const [newCourse, setNewCourse] = useState({
+    title: '', description: '', price: '', startDate: '', endDate: '', schedule: ''
+  });
+  const [showCourseForm, setShowCourseForm] = useState(false);
 
   useEffect(() => {
     const id = localStorage.getItem('teacherId');
@@ -21,6 +29,7 @@ export default function TeacherDashboard() {
       return;
     }
 
+    // 1. Fetch Teacher Data
     fetch('/api/teacher-dashboard', {
       method: 'POST',
       body: JSON.stringify({ teacherId: id }),
@@ -29,13 +38,18 @@ export default function TeacherDashboard() {
     .then(data => {
       setTeacher(data);
       if(data.bookings) {
-        // Only count earnings from "paid" bookings
         const total = data.bookings.reduce((acc: number, curr: any) => {
           return curr.type === 'trial' ? acc : acc + curr.amount;
         }, 0);
         setEarnings(total);
       }
     });
+
+    // 2. Fetch Courses
+    fetch(`/api/courses?teacherId=${id}`)
+      .then(res => res.json())
+      .then(data => setCourses(data));
+
   }, []);
 
   const handleUpdate = async () => {
@@ -47,18 +61,27 @@ export default function TeacherDashboard() {
     alert("Profile Updated Successfully!");
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
+  const handleCreateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/courses', {
+      method: 'POST',
+      body: JSON.stringify({ ...newCourse, teacherId: teacher.id }),
+    });
+    if (res.ok) {
+      alert("Course Created!");
+      setShowCourseForm(false);
+      // Refresh courses
+      fetch(`/api/courses?teacherId=${teacher.id}`).then(r => r.json()).then(setCourses);
+    }
   };
 
-  if (!teacher) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="animate-pulse text-blue-600 font-bold text-xl">Loading your classroom...</div>
-    </div>
-  );
+  const handleDeleteCourse = async (id: string) => {
+    if(!confirm("Delete this course?")) return;
+    await fetch('/api/courses', { method: 'DELETE', body: JSON.stringify({ id }) });
+    fetch(`/api/courses?teacherId=${teacher.id}`).then(r => r.json()).then(setCourses);
+  };
+
+  if (!teacher) return <div className="p-20 text-center">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -66,189 +89,121 @@ export default function TeacherDashboard() {
       
       <div className="pt-24 pb-12 px-4 max-w-7xl mx-auto">
         
-        {/* HEADER SECTION */}
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
           <div>
-            <p className="text-gray-500 font-medium mb-1">{getGreeting()},</p>
             <h1 className="text-4xl font-bold text-gray-900">{teacher.name} 👋</h1>
+            <p className="text-gray-500">Manage your classroom and courses.</p>
           </div>
-          <button 
-            onClick={() => { localStorage.removeItem('teacherId'); router.push('/'); }}
-            className="text-red-500 font-medium hover:bg-red-50 px-4 py-2 rounded-lg transition"
-          >
-            Log Out
-          </button>
+          <button onClick={() => { localStorage.removeItem('teacherId'); router.push('/'); }} className="text-red-500 font-medium">Log Out</button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* LEFT COLUMN: Profile & Stats */}
+          {/* LEFT: Profile */}
           <div className="space-y-8">
-            
-            {/* Profile Card */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-r from-blue-500 to-purple-600"></div>
-              
-              <div className="relative mt-8 flex flex-col items-center">
-                <img 
-                  src={teacher.image} 
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md mb-4" 
-                />
-                
-                {isEditing ? (
-                  <div className="w-full space-y-3">
-                    <input 
-                      value={teacher.name} 
-                      onChange={e => setTeacher({...teacher, name: e.target.value})} 
-                      className="w-full border p-2 rounded-lg text-sm" 
-                      placeholder="Name"
-                    />
-                    <input 
-                      value={teacher.subject} 
-                      onChange={e => setTeacher({...teacher, subject: e.target.value})} 
-                      className="w-full border p-2 rounded-lg text-sm" 
-                      placeholder="Subject"
-                    />
-                    <div className="relative">
-                      <span className="absolute left-3 top-2 text-gray-400">₦</span>
-                      <input 
-                        type="number" 
-                        value={teacher.hourlyRate} 
-                        onChange={e => setTeacher({...teacher, hourlyRate: e.target.value})} 
-                        className="w-full border p-2 pl-8 rounded-lg text-sm" 
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={handleUpdate} className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-bold">Save</button>
-                      <button onClick={() => setIsEditing(false)} className="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg text-sm font-bold">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <h2 className="text-xl font-bold">{teacher.name}</h2>
-                    <p className="text-blue-600 font-medium bg-blue-50 px-3 py-1 rounded-full text-xs mt-1">{teacher.subject} Expert</p>
-                    <div className="mt-4 flex items-center gap-2 text-gray-500 text-sm">
-                      <Star size={16} className="text-yellow-400 fill-current" />
-                      <span>4.9 Rating</span>
-                      <span>•</span>
-                      <span className="font-bold text-gray-900">₦{teacher.hourlyRate}/hr</span>
-                    </div>
-                    <button 
-                      onClick={() => setIsEditing(true)} 
-                      className="mt-6 flex items-center justify-center gap-2 w-full border border-gray-200 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition"
-                    >
-                      <Edit2 size={16} /> Edit Profile
-                    </button>
-                  </>
-                )}
-              </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden text-center">
+               <img src={teacher.image} className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-gray-100 mb-4" />
+               <h2 className="text-xl font-bold">{teacher.name}</h2>
+               <p className="text-blue-600">{teacher.subject}</p>
+               <p className="font-bold mt-2">₦{teacher.hourlyRate}/hr (Base)</p>
+               <button onClick={() => setIsEditing(!isEditing)} className="text-sm text-gray-400 mt-4 underline">Edit Profile</button>
+               
+               {isEditing && (
+                 <div className="mt-4 space-y-2">
+                   <input value={teacher.name} onChange={e => setTeacher({...teacher, name: e.target.value})} className="border p-2 w-full rounded"/>
+                   <button onClick={handleUpdate} className="bg-green-600 text-white w-full py-2 rounded">Save</button>
+                 </div>
+               )}
             </div>
-
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                <div className="bg-green-100 w-10 h-10 rounded-full flex items-center justify-center text-green-600 mb-3">
-                  <DollarSign size={20} />
-                </div>
-                <p className="text-gray-500 text-xs font-bold uppercase">Total Earned</p>
-                <p className="text-2xl font-bold text-gray-900">₦{earnings.toLocaleString()}</p>
-              </div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                <div className="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center text-blue-600 mb-3">
-                  <Users size={20} />
-                </div>
-                <p className="text-gray-500 text-xs font-bold uppercase">Students</p>
-                <p className="text-2xl font-bold text-gray-900">{teacher.bookings?.length || 0}</p>
-              </div>
+            
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+               <p className="text-gray-500 text-xs font-bold uppercase">Total Earnings</p>
+               <p className="text-2xl font-bold text-green-600">₦{earnings.toLocaleString()}</p>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Classroom & Students */}
-          <div className="lg:col-span-2 space-y-8">
-
-            {/* Upcoming Class Banner */}
-            <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-8 text-white shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
-              <div>
-                <p className="text-gray-400 text-sm font-medium mb-1">Status Update</p>
-                <h3 className="text-2xl font-bold mb-2">My Classroom</h3>
-                <div className="flex items-center gap-4 text-sm text-gray-300">
-                  <span className="flex items-center gap-1"><Clock size={16} /> Active Now</span>
-                  <span className="flex items-center gap-1"><Users size={16} /> {teacher.bookings?.length} Students Enrolled</span>
-                </div>
-              </div>
-              <button className="bg-white text-gray-900 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition shadow-lg flex items-center gap-2">
-                <Video size={18} /> Start Session
-              </button>
+          {/* RIGHT: Content Area */}
+          <div className="lg:col-span-2">
+            
+            {/* TABS */}
+            <div className="flex gap-4 mb-6">
+              <button onClick={() => setActiveTab('classroom')} className={`px-6 py-2 rounded-full font-bold transition ${activeTab === 'classroom' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500'}`}>Classroom</button>
+              <button onClick={() => setActiveTab('courses')} className={`px-6 py-2 rounded-full font-bold transition ${activeTab === 'courses' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500'}`}>My Courses</button>
             </div>
 
-            {/* Student List */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Users size={20} className="text-blue-600" />
-                  Recent Enrollments
-                </h3>
+            {/* TAB 1: CLASSROOM (Students) */}
+            {activeTab === 'classroom' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                 <h3 className="font-bold text-lg mb-4">Recent Students</h3>
+                 {teacher.bookings?.length === 0 ? <p className="text-gray-400">No students yet.</p> : (
+                   <div className="divide-y">
+                     {teacher.bookings.map((b: any) => (
+                       <div key={b.id} className="py-4 flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                           <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${b.student?.name}`} className="w-10 h-10 rounded-full bg-gray-100"/>
+                           <div>
+                             <p className="font-bold">{b.student?.name}</p>
+                             <p className="text-xs text-gray-500">{b.type === 'trial' ? 'Free Trial' : 'Paid Student'}</p>
+                           </div>
+                         </div>
+                         <button className="text-blue-600"><MessageSquare size={18}/></button>
+                       </div>
+                     ))}
+                   </div>
+                 )}
               </div>
-              
-              {teacher.bookings?.length === 0 ? (
-                <div className="p-10 text-center">
-                  <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Users className="text-gray-300" size={32} />
-                  </div>
-                  <p className="text-gray-500">No students have enrolled yet.</p>
-                  <p className="text-sm text-blue-500 mt-2">Share your profile to get started!</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {teacher.bookings.map((booking: any) => (
-                    <div key={booking.id} className="p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row items-center gap-4">
-                      {/* Auto-generate avatar */}
-                      <img 
-                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${booking.student?.name || booking.email}`} 
-                        alt="Student" 
-                        className="w-12 h-12 rounded-full bg-gray-100"
-                      />
-                      
-                      <div className="flex-1 text-center sm:text-left">
-                        <h4 className="font-bold text-gray-900 flex items-center justify-center sm:justify-start gap-2">
-                          {booking.student?.name || "Student"}
-                          
-                          {/* BADGES: TRIAL vs PAID */}
-                          {booking.type === 'trial' ? (
-                            <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide border border-green-200">
-                              Free Trial
-                            </span>
-                          ) : (
-                            <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide border border-blue-200">
-                              Paid Student
-                            </span>
-                          )}
-                        </h4>
-                        <p className="text-sm text-gray-500">{booking.student?.email}</p>
-                        
-                        {/* Show Scheduled Date if it exists */}
-                        {booking.scheduledAt && (
-                           <p className="text-xs text-orange-600 font-medium mt-1 flex items-center gap-1 justify-center sm:justify-start">
-                             <Calendar size={12} /> Scheduled: {new Date(booking.scheduledAt).toLocaleString()}
-                           </p>
-                        )}
-                      </div>
+            )}
 
-                      <div className="text-right hidden sm:block">
-                        <p className="text-xs text-gray-400 uppercase font-bold">Action</p>
-                        <button className="text-blue-600 text-sm font-bold hover:underline">
-                          View Details
-                        </button>
-                      </div>
+            {/* TAB 2: COURSES (Management) */}
+            {activeTab === 'courses' && (
+              <div className="space-y-6">
+                
+                {/* Add Course Button */}
+                <button 
+                  onClick={() => setShowCourseForm(!showCourseForm)}
+                  className="w-full py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold hover:border-blue-500 hover:text-blue-500 transition flex justify-center items-center gap-2"
+                >
+                  <Plus size={20} /> Create New Cohort / Course
+                </button>
 
-                      <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Message">
-                        <MessageSquare size={20} />
-                      </button>
+                {/* Create Form */}
+                {showCourseForm && (
+                  <form onSubmit={handleCreateCourse} className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 space-y-4">
+                    <h3 className="font-bold text-lg">New Course Details</h3>
+                    <input required placeholder="Course Title (e.g. Master English - Sept Cohort)" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, title: e.target.value})} />
+                    <textarea required placeholder="Description" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, description: e.target.value})} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <input required type="number" placeholder="Price (₦)" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, price: e.target.value})} />
+                      <input required type="text" placeholder="Schedule (e.g. Mon/Wed 4PM)" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, schedule: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><label className="text-xs text-gray-500">Start Date</label><input required type="date" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, startDate: e.target.value})} /></div>
+                      <div><label className="text-xs text-gray-500">End Date</label><input required type="date" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, endDate: e.target.value})} /></div>
+                    </div>
+                    <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Publish Course</button>
+                  </form>
+                )}
+
+                {/* Course List */}
+                <div className="grid gap-4">
+                  {courses.map(course => (
+                    <div key={course.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                      <div>
+                        <h4 className="font-bold text-lg">{course.title}</h4>
+                        <p className="text-gray-500 text-sm mb-2">{course.schedule}</p>
+                        <div className="flex gap-4 text-xs font-bold text-gray-400">
+                          <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(course.startDate).toLocaleDateString()} - {new Date(course.endDate).toLocaleDateString()}</span>
+                          <span className="text-green-600">₦{course.price.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => handleDeleteCourse(course.id)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={20}/></button>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+
+              </div>
+            )}
 
           </div>
         </div>
