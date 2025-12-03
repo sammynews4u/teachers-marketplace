@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// POST: Get Teacher Data (Profile + Students)
 export async function POST(req: Request) {
   try {
     const { teacherId } = await req.json();
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
       include: { 
         bookings: {
           include: { 
-            student: true // <--- THIS IS KEY: Get the Student details!
+            student: true 
           },
           orderBy: {
             createdAt: 'desc'
@@ -27,11 +28,7 @@ export async function POST(req: Request) {
   }
 }
 
-// Keep the PUT function (Update Profile) as it is.
-// app/api/teacher-dashboard/route.ts
-
-// ... (keep POST function as is)
-
+// PUT: Update Teacher Profile (Includes Onboarding Fix)
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
@@ -43,7 +40,7 @@ export async function PUT(req: Request) {
     if (subject) dataToUpdate.subject = subject;
     if (hourlyRate) dataToUpdate.hourlyRate = parseInt(hourlyRate);
     
-    // This fixes the Onboarding loop:
+    // Explicitly check for boolean to allow 'false'
     if (hasOnboarded === true || hasOnboarded === false) {
       dataToUpdate.hasOnboarded = hasOnboarded;
     }
@@ -55,6 +52,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json(updated);
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 }

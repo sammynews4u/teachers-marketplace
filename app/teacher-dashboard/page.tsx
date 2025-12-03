@@ -229,29 +229,10 @@ export default function TeacherDashboard() {
           <div className="lg:col-span-2">
             
             {/* TABS */}
-            {/* TABS (Copy and replace this section in your file) */}
             <div className="flex flex-wrap gap-4 mb-6 bg-gray-200 p-1 rounded-2xl w-fit">
-              <button 
-                onClick={() => setActiveTab('classroom')} 
-                className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'classroom' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Classroom
-              </button>
-              
-              <button 
-                onClick={() => setActiveTab('courses')} 
-                className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'courses' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                My Courses
-              </button>
-              
-              {/* THIS IS THE BOOST BUTTON - MAKE SURE IT IS HERE */}
-              <button 
-                onClick={() => setActiveTab('boost')} 
-                className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'boost' ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                🚀 Boost Profile
-              </button>
+              <button onClick={() => setActiveTab('classroom')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'classroom' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>Classroom</button>
+              <button onClick={() => setActiveTab('courses')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'courses' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>My Courses</button>
+              <button onClick={() => setActiveTab('boost')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'boost' ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>🚀 Boost Profile</button>
             </div>
 
             {/* TAB 1: CLASSROOM */}
