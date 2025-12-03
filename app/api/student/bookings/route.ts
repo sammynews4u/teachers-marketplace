@@ -5,22 +5,27 @@ const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
-    const { studentId } = await req.json();
+    const { teacherId, studentId, amount, reference, type, scheduledAt } = await req.json();
 
-    const bookings = await prisma.booking.findMany({
-      where: {
-        studentId: studentId // Only find bookings for this student
-      },
-      include: {
-        teacher: true // Get the teacher's details (Name, Image, etc)
-      },
-      orderBy: {
-        createdAt: 'desc'
+    // If it's a trial, we generate a fake reference
+    const finalReference = type === 'trial' ? `TRIAL-${Date.now()}` : reference;
+    const finalStatus = type === 'trial' ? 'scheduled' : 'success';
+
+    const booking = await prisma.booking.create({
+      data: {
+        teacherId,
+        studentId,
+        amount,
+        reference: finalReference,
+        status: finalStatus,
+        type: type || 'paid',
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined
       }
     });
 
-    return NextResponse.json(bookings);
+    return NextResponse.json({ success: true, booking });
   } catch (error) {
-    return NextResponse.json({ error: 'Error fetching bookings' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Booking failed' }, { status: 500 });
   }
 }

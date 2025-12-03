@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Users, DollarSign, Calendar, Edit2, 
-  TrendingUp, Clock, MessageSquare, Star 
+  Clock, MessageSquare, Star, Video 
 } from 'lucide-react';
 
 export default function TeacherDashboard() {
@@ -29,7 +29,10 @@ export default function TeacherDashboard() {
     .then(data => {
       setTeacher(data);
       if(data.bookings) {
-        const total = data.bookings.reduce((acc: number, curr: any) => acc + curr.amount, 0);
+        // Only count earnings from "paid" bookings
+        const total = data.bookings.reduce((acc: number, curr: any) => {
+          return curr.type === 'trial' ? acc : acc + curr.amount;
+        }, 0);
         setEarnings(total);
       }
     });
@@ -44,7 +47,6 @@ export default function TeacherDashboard() {
     alert("Profile Updated Successfully!");
   };
 
-  // Helper for Greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
@@ -164,18 +166,18 @@ export default function TeacherDashboard() {
           {/* RIGHT COLUMN: Classroom & Students */}
           <div className="lg:col-span-2 space-y-8">
 
-            {/* Upcoming Class (Placeholder for liveliness) */}
-            <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-8 text-white shadow-lg flex justify-between items-center">
+            {/* Upcoming Class Banner */}
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-8 text-white shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
               <div>
-                <p className="text-gray-400 text-sm font-medium mb-1">Upcoming Session</p>
-                <h3 className="text-2xl font-bold mb-2">English Conversation 101</h3>
+                <p className="text-gray-400 text-sm font-medium mb-1">Status Update</p>
+                <h3 className="text-2xl font-bold mb-2">My Classroom</h3>
                 <div className="flex items-center gap-4 text-sm text-gray-300">
-                  <span className="flex items-center gap-1"><Clock size={16} /> 04:00 PM Today</span>
-                  <span className="flex items-center gap-1"><Users size={16} /> 3 Students</span>
+                  <span className="flex items-center gap-1"><Clock size={16} /> Active Now</span>
+                  <span className="flex items-center gap-1"><Users size={16} /> {teacher.bookings?.length} Students Enrolled</span>
                 </div>
               </div>
-              <button className="bg-white text-gray-900 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition shadow-lg">
-                Start Class
+              <button className="bg-white text-gray-900 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition shadow-lg flex items-center gap-2">
+                <Video size={18} /> Start Session
               </button>
             </div>
 
@@ -184,11 +186,8 @@ export default function TeacherDashboard() {
               <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Users size={20} className="text-blue-600" />
-                  My Classroom
+                  Recent Enrollments
                 </h3>
-                <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-gray-600">
-                  {teacher.bookings?.length} Enrolled
-                </span>
               </div>
               
               {teacher.bookings?.length === 0 ? (
@@ -202,29 +201,47 @@ export default function TeacherDashboard() {
               ) : (
                 <div className="divide-y divide-gray-50">
                   {teacher.bookings.map((booking: any) => (
-                    <div key={booking.id} className="p-4 hover:bg-gray-50 transition flex items-center gap-4">
-                      {/* Auto-generate avatar based on name */}
+                    <div key={booking.id} className="p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row items-center gap-4">
+                      {/* Auto-generate avatar */}
                       <img 
                         src={`https://api.dicebear.com/7.x/initials/svg?seed=${booking.student?.name || booking.email}`} 
                         alt="Student" 
                         className="w-12 h-12 rounded-full bg-gray-100"
                       />
                       
-                      <div className="flex-1">
-                        <h4 className="font-bold text-gray-900">
+                      <div className="flex-1 text-center sm:text-left">
+                        <h4 className="font-bold text-gray-900 flex items-center justify-center sm:justify-start gap-2">
                           {booking.student?.name || "Student"}
+                          
+                          {/* BADGES: TRIAL vs PAID */}
+                          {booking.type === 'trial' ? (
+                            <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide border border-green-200">
+                              Free Trial
+                            </span>
+                          ) : (
+                            <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide border border-blue-200">
+                              Paid Student
+                            </span>
+                          )}
                         </h4>
                         <p className="text-sm text-gray-500">{booking.student?.email}</p>
+                        
+                        {/* Show Scheduled Date if it exists */}
+                        {booking.scheduledAt && (
+                           <p className="text-xs text-orange-600 font-medium mt-1 flex items-center gap-1 justify-center sm:justify-start">
+                             <Calendar size={12} /> Scheduled: {new Date(booking.scheduledAt).toLocaleString()}
+                           </p>
+                        )}
                       </div>
 
-                      <div className="hidden sm:block text-right">
-                        <p className="text-xs text-gray-400 uppercase font-bold">Joined</p>
-                        <p className="text-sm font-medium text-gray-700">
-                          {new Date(booking.createdAt).toLocaleDateString()}
-                        </p>
+                      <div className="text-right hidden sm:block">
+                        <p className="text-xs text-gray-400 uppercase font-bold">Action</p>
+                        <button className="text-blue-600 text-sm font-bold hover:underline">
+                          View Details
+                        </button>
                       </div>
 
-                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Message">
+                      <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Message">
                         <MessageSquare size={20} />
                       </button>
                     </div>

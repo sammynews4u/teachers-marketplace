@@ -30,19 +30,21 @@ model Student {
 }
 
 model Booking {
-  id        String   @id @default(uuid())
-  amount    Int
-  reference String
-  status    String   @default("success")
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  amount      Int
+  reference   String
+  status      String   @default("success") 
+  createdAt   DateTime @default(now())
+  
+  // NEW FIELDS
+  type        String   @default("paid") // "paid" or "trial"
+  scheduledAt DateTime? // The date/time of the call
 
-  // Relation to Teacher
-  teacherId String
-  teacher   Teacher  @relation(fields: [teacherId], references: [id])
-
-  // Relation to Student
-  studentId String
-  student   Student  @relation(fields: [studentId], references: [id])
+  // Relations (Keep these the same)
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
 }
 model Page {
   id        String   @id @default(uuid())
