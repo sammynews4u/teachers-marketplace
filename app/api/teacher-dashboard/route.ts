@@ -28,14 +28,33 @@ export async function POST(req: Request) {
 }
 
 // Keep the PUT function (Update Profile) as it is.
+// app/api/teacher-dashboard/route.ts
+
+// ... (keep POST function as is)
+
 export async function PUT(req: Request) {
-  const body = await req.json();
-  const { id, name, subject, hourlyRate } = body;
+  try {
+    const body = await req.json();
+    const { id, name, subject, hourlyRate, hasOnboarded } = body;
 
-  const updated = await prisma.teacher.update({
-    where: { id },
-    data: { name, subject, hourlyRate: parseInt(hourlyRate) }
-  });
+    // Create an object with only the fields that are present
+    const dataToUpdate: any = {};
+    if (name) dataToUpdate.name = name;
+    if (subject) dataToUpdate.subject = subject;
+    if (hourlyRate) dataToUpdate.hourlyRate = parseInt(hourlyRate);
+    
+    // This fixes the Onboarding loop:
+    if (hasOnboarded === true || hasOnboarded === false) {
+      dataToUpdate.hasOnboarded = hasOnboarded;
+    }
 
-  return NextResponse.json(updated);
+    const updated = await prisma.teacher.update({
+      where: { id },
+      data: dataToUpdate
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
 }
