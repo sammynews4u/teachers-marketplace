@@ -40,13 +40,59 @@ export default function TeacherDashboard() {
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   useEffect(() => {
-    setMounted(true); // App is now in the browser
+    setMounted(true);
 
     const id = localStorage.getItem('teacherId');
     if (!id) {
       router.push('/login');
       return;
     }
+
+    // 1. Fetch Teacher Data
+    fetch('/api/teacher-dashboard', {
+      method: 'POST',
+      body: JSON.stringify({ teacherId: id }),
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    })
+    .then(data => {
+      if (!data) {
+        // Safety Check: If user not found in DB, clear ID and logout
+        console.error("Teacher not found");
+        localStorage.removeItem('teacherId');
+        router.push('/login');
+        return;
+      }
+      
+      setTeacher(data);
+      
+      if (data.hasOnboarded === false) {
+        setShowOnboarding(true);
+      }
+
+      // SAFE CHECK: Ensure bookings exist before reducing
+      if (data.bookings && Array.isArray(data.bookings)) {
+        const total = data.bookings.reduce((acc: number, curr: any) => {
+          return curr.type === 'trial' ? acc : acc + curr.amount;
+        }, 0);
+        setEarnings(total);
+      }
+    })
+    .catch(err => {
+      console.error("Dashboard Error:", err);
+      // Optional: Redirect to login on error
+    });
+
+    // 2. Fetch Courses
+    fetch(`/api/courses?teacherId=${id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCourses(data);
+      });
+
+  }, []);
 
     // 1. Fetch Teacher Data
     fetch('/api/teacher-dashboard', {
