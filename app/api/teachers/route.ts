@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       data: {
         name,
         email,
-        password, // In a real app, we would encrypt this!
+        password, 
         subject,
         location,
         hourlyRate: parseInt(hourlyRate),
