@@ -27,8 +27,10 @@ export default function AdminDashboard() {
   
   // EDITORS STATE
   const [editingPage, setEditingPage] = useState({ slug: '', title: '', content: '' });
-  const [editingPackage, setEditingPackage] = useState<any>(null); // Holds the package being edited
-  const [showPackageForm, setShowPackageForm] = useState(false);   // Toggles form visibility
+  
+  // Package State
+  const [editingPackage, setEditingPackage] = useState<any>(null); // Holds object being edited
+  const [showPackageForm, setShowPackageForm] = useState(false);   // Toggles form
 
   useEffect(() => {
     setMounted(true);
@@ -66,6 +68,7 @@ export default function AdminDashboard() {
         return res.json();
       })
       .then(res => {
+        console.log("Admin Data Loaded:", res); // Debugging line
         setData({
           teachers: Array.isArray(res.teachers) ? res.teachers : [],
           students: Array.isArray(res.students) ? res.students : [],
@@ -97,7 +100,6 @@ export default function AdminDashboard() {
     refreshData();
   };
 
-  // --- SAVE PAGE ---
   const handleSavePage = async () => {
     await fetch('/api/admin/general', {
       method: 'PUT',
@@ -116,7 +118,7 @@ export default function AdminDashboard() {
       method: 'PUT',
       body: JSON.stringify({ 
         action: 'update_package', 
-        id: editingPackage.id, // If null, backend creates new
+        id: editingPackage.id, 
         data: editingPackage 
       }),
       headers: { 'Content-Type': 'application/json' }
@@ -127,19 +129,18 @@ export default function AdminDashboard() {
     refreshData();
   };
 
+  const openNewPackage = () => {
+    setEditingPackage({ id: '', name: '', price: '', description: '', features: '' });
+    setShowPackageForm(true);
+  };
+
   const openEditPackage = (pkg: any) => {
     setEditingPackage({ ...pkg, price: pkg.price.toString() });
     setShowPackageForm(true);
   };
 
-  const openNewPackage = () => {
-    setEditingPackage({ id: null, name: '', price: '', description: '', features: '' });
-    setShowPackageForm(true);
-  };
-
   if (!mounted) return null;
 
-  // --- LOGIN SCREEN ---
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
@@ -149,14 +150,7 @@ export default function AdminDashboard() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Admin Access</h1>
           <form onSubmit={handleLogin} className="space-y-4">
-            <input 
-              aria-label="Admin Password"
-              type="password" 
-              placeholder="Enter Secret Key" 
-              className="w-full p-4 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-600 text-center text-lg tracking-widest"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
+            <input aria-label="Password" type="password" placeholder="Enter Secret Key" className="w-full p-4 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-600 text-center text-lg tracking-widest" value={password} onChange={e => setPassword(e.target.value)} />
             <button disabled={loading} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2">
               {loading ? "Verifying..." : <>Unlock Dashboard <ArrowRight size={20}/></>}
             </button>
@@ -166,7 +160,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // --- MAIN DASHBOARD ---
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -182,11 +175,7 @@ export default function AdminDashboard() {
         {/* TABS */}
         <div className="flex flex-wrap gap-4 mb-8 bg-white p-2 rounded-xl shadow-sm w-fit">
           {['teachers', 'students', 'packages', 'pages'].map(tab => (
-            <button 
-              key={tab}
-              onClick={() => setActiveTab(tab)} 
-              className={`px-6 py-2 rounded-lg font-bold capitalize transition ${activeTab === tab ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-            >
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2 rounded-lg font-bold capitalize transition ${activeTab === tab ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
               {tab}
             </button>
           ))}
@@ -238,24 +227,24 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* --- PACKAGES TAB (UPDATED) --- */}
+        {/* --- PACKAGES TAB --- */}
         {activeTab === 'packages' && (
           <div className="space-y-6">
             
-            {/* Show Add Button only if form is hidden */}
+            {/* Show 'Add' button if not editing */}
             {!showPackageForm && (
               <button onClick={openNewPackage} className="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-800 transition">
                 <Plus size={20}/> Add New Package
               </button>
             )}
 
-            {/* PACKAGE FORM */}
+            {/* CREATE/EDIT FORM */}
             {showPackageForm && editingPackage && (
               <form onSubmit={handleSavePackage} className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 animate-in fade-in">
                 <h3 className="font-bold text-xl mb-4">{editingPackage.id ? 'Edit Package' : 'New Package'}</h3>
                 <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <input aria-label="Name" required placeholder="Package Name (e.g. Gold)" className="border p-3 rounded-lg" value={editingPackage.name} onChange={e => setEditingPackage({...editingPackage, name: e.target.value})}/>
-                  <input aria-label="Price" required type="number" placeholder="Price (₦)" className="border p-3 rounded-lg" value={editingPackage.price} onChange={e => setEditingPackage({...editingPackage, price: e.target.value})}/>
+                  <input aria-label="Name" required placeholder="Package Name (e.g. Bronze)" className="border p-3 rounded-lg w-full" value={editingPackage.name} onChange={e => setEditingPackage({...editingPackage, name: e.target.value})}/>
+                  <input aria-label="Price" required type="number" placeholder="Price (₦)" className="border p-3 rounded-lg w-full" value={editingPackage.price} onChange={e => setEditingPackage({...editingPackage, price: e.target.value})}/>
                 </div>
                 <input aria-label="Description" required placeholder="Short Description" className="border p-3 rounded-lg w-full mb-4" value={editingPackage.description} onChange={e => setEditingPackage({...editingPackage, description: e.target.value})}/>
                 <textarea aria-label="Features" required placeholder="Features (comma separated)" className="border p-3 rounded-lg w-full h-24 mb-4" value={editingPackage.features} onChange={e => setEditingPackage({...editingPackage, features: e.target.value})}/>
@@ -266,10 +255,10 @@ export default function AdminDashboard() {
               </form>
             )}
 
-            {/* PACKAGE LIST */}
+            {/* LIST */}
             <div className="grid md:grid-cols-3 gap-6">
               {data.packages.map((pkg: any) => (
-                <div key={pkg.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 relative">
+                <div key={pkg.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 relative hover:shadow-md transition">
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h4 className="font-bold text-lg">{pkg.name}</h4>
@@ -299,7 +288,7 @@ export default function AdminDashboard() {
                 {data.pages.map((p: any) => (
                   <li key={p.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
                     <span className="font-medium">{p.title}</span>
-                    <button aria-label="Edit" onClick={() => setEditingPage(p)} className="text-blue-500"><Edit size={16}/></button>
+                    <button aria-label="Edit Page" onClick={() => setEditingPage(p)} className="text-blue-500"><Edit size={16}/></button>
                   </li>
                 ))}
               </ul>
@@ -308,9 +297,9 @@ export default function AdminDashboard() {
             <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm">
               <h3 className="font-bold mb-4 text-xl">Page Editor</h3>
               <div className="space-y-4">
-                <input aria-label="Title" className="w-full border p-2 rounded-lg" placeholder="Page Title" value={editingPage.title} onChange={e => setEditingPage({...editingPage, title: e.target.value})}/>
-                <input aria-label="Slug" className="w-full border p-2 rounded-lg bg-gray-50" placeholder="URL Slug (e.g. terms)" value={editingPage.slug} onChange={e => setEditingPage({...editingPage, slug: e.target.value})}/>
-                <textarea aria-label="Content" className="w-full border p-2 rounded-lg h-64 font-mono text-sm" placeholder="HTML Content..." value={editingPage.content} onChange={e => setEditingPage({...editingPage, content: e.target.value})}/>
+                <input aria-label="Page Title" className="w-full border p-2 rounded-lg" placeholder="Page Title" value={editingPage.title} onChange={e => setEditingPage({...editingPage, title: e.target.value})}/>
+                <input aria-label="Page Slug" className="w-full border p-2 rounded-lg bg-gray-50" placeholder="URL Slug (e.g. terms)" value={editingPage.slug} onChange={e => setEditingPage({...editingPage, slug: e.target.value})}/>
+                <textarea aria-label="Page Content" className="w-full border p-2 rounded-lg h-64 font-mono text-sm" placeholder="HTML Content..." value={editingPage.content} onChange={e => setEditingPage({...editingPage, content: e.target.value})}/>
                 <button onClick={handleSavePage} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"><Save size={18} /> Save Page</button>
               </div>
             </div>

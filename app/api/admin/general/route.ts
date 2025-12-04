@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// GET: Fetch All Data for Dashboard
+// GET: Fetch Everything
 export async function GET() {
   try {
     const teachers = await prisma.teacher.findMany({
@@ -14,11 +14,13 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
     const pages = await prisma.page.findMany();
+    
+    // Explicitly fetch packages with error catching
     const packages = await prisma.package.findMany({
       orderBy: { price: 'asc' }
     });
 
-    // Calculate Revenue (excluding free trials)
+    // Calculate Total Revenue
     let totalRevenue = 0;
     teachers.forEach(t => {
       t.bookings.forEach(b => {
@@ -26,8 +28,16 @@ export async function GET() {
       });
     });
 
-    return NextResponse.json({ teachers, students, pages, packages, totalRevenue });
+    return NextResponse.json({ 
+      teachers: teachers || [], 
+      students: students || [], 
+      pages: pages || [], 
+      packages: packages || [], // Ensure this is never undefined
+      totalRevenue 
+    });
+
   } catch (error) {
+    console.error("Admin API Error:", error);
     return NextResponse.json({ error: "Failed to load admin data" }, { status: 500 });
   }
 }
@@ -49,8 +59,8 @@ export async function PUT(req: Request) {
 
     // 2. Update OR Create Package
     if (action === 'update_package') {
-      // If we have an ID, it's an UPDATE
-      if (id) {
+      // Logic: If ID exists and isn't empty, Update. Otherwise, Create.
+      if (id && id !== "") {
         const pkg = await prisma.package.update({
           where: { id },
           data: { 
@@ -61,9 +71,7 @@ export async function PUT(req: Request) {
           }
         });
         return NextResponse.json(pkg);
-      } 
-      // If NO ID, it's a CREATE
-      else {
+      } else {
         const pkg = await prisma.package.create({
           data: { 
             name: data.name,
@@ -88,7 +96,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
+    console.error("Update Error:", error);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });
   }
 }
