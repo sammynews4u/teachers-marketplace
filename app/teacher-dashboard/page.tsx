@@ -3,18 +3,22 @@
 import Navbar from '../../components/Navbar';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PaystackButton } from 'react-paystack';
+import dynamic from 'next/dynamic'; // 1. Import Dynamic
 import { 
   Users, DollarSign, Calendar, Edit2, 
   Clock, MessageSquare, Star, Video, Plus, Trash2, 
   CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket 
 } from 'lucide-react';
 
+// 2. DYNAMICALLY IMPORT PAYSTACK (Disables Server Side Rendering for this component)
+const PaystackButton = dynamic(
+  () => import('react-paystack').then((mod) => mod.PaystackButton),
+  { ssr: false }
+);
+
 export default function TeacherDashboard() {
   const router = useRouter();
-  
-  // 1. ADD MOUNTED STATE TO FIX "WINDOW NOT DEFINED" ERROR
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(false); // Prevents hydration mismatch
 
   const [teacher, setTeacher] = useState<any>(null);
   const [courses, setCourses] = useState<any[]>([]);
@@ -36,8 +40,7 @@ export default function TeacherDashboard() {
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   useEffect(() => {
-    // 2. SET MOUNTED TO TRUE (This only runs in the browser)
-    setMounted(true);
+    setMounted(true); // App is now in the browser
 
     const id = localStorage.getItem('teacherId');
     if (!id) {
@@ -45,7 +48,7 @@ export default function TeacherDashboard() {
       return;
     }
 
-    // Fetch Teacher Data
+    // 1. Fetch Teacher Data
     fetch('/api/teacher-dashboard', {
       method: 'POST',
       body: JSON.stringify({ teacherId: id }),
@@ -64,14 +67,12 @@ export default function TeacherDashboard() {
       }
     });
 
-    // Fetch Courses
+    // 2. Fetch Courses
     fetch(`/api/courses?teacherId=${id}`)
       .then(res => res.json())
       .then(data => setCourses(data));
 
   }, []);
-
-  // --- HANDLERS ---
 
   const handleFinishOnboarding = async () => {
     await fetch('/api/teacher-dashboard', {
@@ -136,8 +137,8 @@ export default function TeacherDashboard() {
     return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
   };
 
-  // 3. PREVENT SERVER RENDER OF BROWSER CONTENT
-  if (!mounted) return null;
+  // 3. Prevent Server Rendering of Browser Content
+  if (!mounted) return null; 
 
   if (!teacher) return <div className="p-20 text-center text-blue-600 font-bold">Loading Dashboard...</div>;
 
