@@ -3,50 +3,62 @@
 import Navbar from '../../components/Navbar';
 import { useEffect, useState } from 'react';
 import { 
-  Trash2, Edit, FileText, Users, GraduationCap, 
-  Save, Plus, CheckCircle2, XCircle, DollarSign, Package 
+  Trash2, Edit, Users, DollarSign, Package, Lock, ArrowRight, Save, Plus, CheckCircle2 
 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  // LOGIN STATE
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // DASHBOARD STATE
   const [data, setData] = useState<any>({ teachers: [], students: [], pages: [], packages: [], totalRevenue: 0 });
   const [activeTab, setActiveTab] = useState('teachers');
-  const [loading, setLoading] = useState(true);
-
-  // Forms State
   const [editingPage, setEditingPage] = useState({ slug: '', title: '', content: '' });
   const [editingPackage, setEditingPackage] = useState<any>(null);
 
-  // Fetch Data
+  // --- 1. HANDLE LOGIN ---
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const res = await fetch('/api/admin/auth', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (res.ok) {
+      setIsAuthenticated(true);
+      refreshData(); // Load data only after login
+    } else {
+      alert("Access Denied: Wrong Password");
+    }
+    setLoading(false);
+  };
+
+  // --- 2. FETCH DATA (Only called after login) ---
   const refreshData = () => {
     fetch('/api/admin/general')
       .then(res => res.json())
       .then(res => {
         setData(res);
-        setLoading(false);
       });
   };
 
-  useEffect(() => {
-    refreshData();
-  }, []);
-
-  // --- ACTIONS ---
-
+  // --- ACTIONS (Verify, Delete, Save) ---
   const handleVerify = async (teacher: any) => {
     await fetch('/api/admin/general', {
       method: 'PUT',
-      body: JSON.stringify({
-        action: 'verify_teacher',
-        id: teacher.id,
-        data: { isVerified: !teacher.isVerified }
-      }),
+      body: JSON.stringify({ action: 'verify_teacher', id: teacher.id, data: { isVerified: !teacher.isVerified } }),
       headers: { 'Content-Type': 'application/json' }
     });
     refreshData();
   };
 
   const handleDelete = async (id: string, type: string) => {
-    if(!confirm("Are you sure? This action is irreversible.")) return;
+    if(!confirm("Are you sure? This is irreversible.")) return;
     await fetch('/api/admin/general', {
       method: 'DELETE',
       body: JSON.stringify({ id, type }),
@@ -70,11 +82,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     await fetch('/api/admin/general', {
       method: 'PUT',
-      body: JSON.stringify({ 
-        action: 'update_package', 
-        id: editingPackage.id, 
-        data: editingPackage 
-      }),
+      body: JSON.stringify({ action: 'update_package', id: editingPackage.id, data: editingPackage }),
       headers: { 'Content-Type': 'application/json' }
     });
     alert("Package Saved!");
@@ -82,8 +90,38 @@ export default function AdminDashboard() {
     refreshData();
   };
 
-  if (loading) return <div className="p-20 text-center font-bold text-gray-500">Loading Control Panel...</div>;
+  // --- RENDER LOGIN SCREEN ---
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
+          <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock className="text-blue-600" size={32} />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Admin Access</h1>
+          <p className="text-gray-500 mb-6">Enter your master password to continue.</p>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input 
+              type="password" 
+              placeholder="Enter Secret Key" 
+              className="w-full p-4 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-600 text-center text-lg tracking-widest"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+            <button 
+              disabled={loading}
+              className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2"
+            >
+              {loading ? "Verifying..." : <>Unlock Dashboard <ArrowRight size={20}/></>}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
+  // --- RENDER DASHBOARD (Only shows if Authenticated) ---
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -92,7 +130,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
           <h1 className="text-3xl font-bold text-gray-900">Admin Control Center</h1>
           <div className="bg-green-100 text-green-800 px-4 py-2 rounded-xl font-bold flex items-center gap-2">
-            <DollarSign size={20}/> Revenue: ₦{data.totalRevenue.toLocaleString()}
+            <DollarSign size={20}/> Revenue: ₦{data.totalRevenue?.toLocaleString()}
           </div>
         </div>
 
@@ -192,7 +230,6 @@ export default function AdminDashboard() {
         {/* --- PACKAGES TAB --- */}
         {activeTab === 'packages' && (
           <div className="grid md:grid-cols-3 gap-8">
-            {/* List */}
             <div className="md:col-span-1 space-y-4">
               <button 
                 onClick={() => setEditingPackage({ name: '', price: '', description: '', features: '' })}
@@ -215,7 +252,6 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            {/* Editor */}
             <div className="md:col-span-2">
               {editingPackage ? (
                 <form onSubmit={handleSavePackage} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
