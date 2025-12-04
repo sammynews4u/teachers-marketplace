@@ -3,14 +3,14 @@
 import Navbar from '../../components/Navbar';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic'; // 1. Import Dynamic
+import dynamic from 'next/dynamic';
 import { 
   Users, DollarSign, Calendar, Edit2, 
   Clock, MessageSquare, Star, Video, Plus, Trash2, 
   CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket 
 } from 'lucide-react';
 
-// 2. DYNAMICALLY IMPORT PAYSTACK (Disables Server Side Rendering for this component)
+// Dynamic Import for Paystack to prevent server-side errors
 const PaystackButton = dynamic(
   () => import('react-paystack').then((mod) => mod.PaystackButton),
   { ssr: false }
@@ -18,7 +18,7 @@ const PaystackButton = dynamic(
 
 export default function TeacherDashboard() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false); // Prevents hydration mismatch
+  const [mounted, setMounted] = useState(false);
 
   const [teacher, setTeacher] = useState<any>(null);
   const [courses, setCourses] = useState<any[]>([]);
@@ -48,31 +48,28 @@ export default function TeacherDashboard() {
       return;
     }
 
-    // 1. Fetch Teacher Data
+    // 1. Fetch Teacher Data with Safety Checks
     fetch('/api/teacher-dashboard', {
       method: 'POST',
       body: JSON.stringify({ teacherId: id }),
     })
     .then(res => {
-      if (!res.ok) throw new Error("Failed to fetch");
+      if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
     })
     .then(data => {
       if (!data) {
-        // Safety Check: If user not found in DB, clear ID and logout
-        console.error("Teacher not found");
-        localStorage.removeItem('teacherId');
-        router.push('/login');
-        return;
+        throw new Error("No data returned");
       }
       
       setTeacher(data);
       
+      // Trigger Onboarding
       if (data.hasOnboarded === false) {
         setShowOnboarding(true);
       }
 
-      // SAFE CHECK: Ensure bookings exist before reducing
+      // Calculate Earnings
       if (data.bookings && Array.isArray(data.bookings)) {
         const total = data.bookings.reduce((acc: number, curr: any) => {
           return curr.type === 'trial' ? acc : acc + curr.amount;
@@ -81,8 +78,9 @@ export default function TeacherDashboard() {
       }
     })
     .catch(err => {
-      console.error("Dashboard Error:", err);
-      // Optional: Redirect to login on error
+      console.error("Dashboard Load Error:", err);
+      // Only redirect if it's a critical auth failure
+      if (!teacher) router.push('/login');
     });
 
     // 2. Fetch Courses
@@ -90,37 +88,15 @@ export default function TeacherDashboard() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setCourses(data);
-      });
+      })
+      .catch(err => console.error("Courses Error:", err));
 
   }, []);
 
-    // 1. Fetch Teacher Data
-    fetch('/api/teacher-dashboard', {
-      method: 'POST',
-      body: JSON.stringify({ teacherId: id }),
-    })
-    .then(res => res.json())
-    .then(data => {
-      setTeacher(data);
-      if (data.hasOnboarded === false) {
-        setShowOnboarding(true);
-      }
-      if(data.bookings) {
-        const total = data.bookings.reduce((acc: number, curr: any) => {
-          return curr.type === 'trial' ? acc : acc + curr.amount;
-        }, 0);
-        setEarnings(total);
-      }
-    });
-
-    // 2. Fetch Courses
-    fetch(`/api/courses?teacherId=${id}`)
-      .then(res => res.json())
-      .then(data => setCourses(data));
-
-  }, []);
+  // --- HANDLERS ---
 
   const handleFinishOnboarding = async () => {
+    if (!teacher) return;
     await fetch('/api/teacher-dashboard', {
       method: 'PUT',
       body: JSON.stringify({ ...teacher, hasOnboarded: true }),
@@ -130,6 +106,7 @@ export default function TeacherDashboard() {
   };
 
   const handleUpdateProfile = async () => {
+    if (!teacher) return;
     await fetch('/api/teacher-dashboard', {
       method: 'PUT',
       body: JSON.stringify(teacher),
@@ -140,6 +117,8 @@ export default function TeacherDashboard() {
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!teacher) return;
+    
     const res = await fetch('/api/courses', {
       method: 'POST',
       body: JSON.stringify({ ...newCourse, teacherId: teacher.id }),
@@ -157,10 +136,12 @@ export default function TeacherDashboard() {
   const handleDeleteCourse = async (id: string) => {
     if(!confirm("Are you sure you want to delete this course?")) return;
     await fetch('/api/courses', { method: 'DELETE', body: JSON.stringify({ id }) });
-    fetch(`/api/courses?teacherId=${teacher.id}`).then(r => r.json()).then(setCourses);
+    if(teacher) fetch(`/api/courses?teacherId=${teacher.id}`).then(r => r.json()).then(setCourses);
   };
 
   const handlePackageSuccess = async (reference: any, plan: string, amount: number) => {
+    if (!teacher) return;
+    
     const res = await fetch('/api/packages/purchase', {
       method: 'POST',
       body: JSON.stringify({
@@ -183,8 +164,8 @@ export default function TeacherDashboard() {
     return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
   };
 
-  // 3. Prevent Server Rendering of Browser Content
-  if (!mounted) return null; 
+  // Prevent hydration mismatch
+  if (!mounted) return null;
 
   if (!teacher) return <div className="p-20 text-center text-blue-600 font-bold">Loading Dashboard...</div>;
 
