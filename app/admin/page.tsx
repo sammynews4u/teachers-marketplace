@@ -3,51 +3,81 @@
 import Navbar from '../../components/Navbar';
 import { useEffect, useState } from 'react';
 import { 
-  Trash2, Edit, Users, DollarSign, Package, Lock, ArrowRight, Save, Plus, CheckCircle2 
+  Trash2, Edit, Users, DollarSign, Lock, ArrowRight, Save, Plus, CheckCircle2 
 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const [mounted, setMounted] = useState(false); // Prevents hydration errors
+  
   // LOGIN STATE
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // DASHBOARD STATE
-  const [data, setData] = useState<any>({ teachers: [], students: [], pages: [], packages: [], totalRevenue: 0 });
+  // DASHBOARD STATE (Initialize with empty arrays to prevent crashes)
+  const [data, setData] = useState<any>({ 
+    teachers: [], 
+    students: [], 
+    pages: [], 
+    packages: [], 
+    totalRevenue: 0 
+  });
+  
   const [activeTab, setActiveTab] = useState('teachers');
   const [editingPage, setEditingPage] = useState({ slug: '', title: '', content: '' });
   const [editingPackage, setEditingPackage] = useState<any>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // --- 1. HANDLE LOGIN ---
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    const res = await fetch('/api/admin/auth', {
-      method: 'POST',
-      body: JSON.stringify({ password }),
-      headers: { 'Content-Type': 'application/json' }
-    });
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+        headers: { 'Content-Type': 'application/json' }
+      });
 
-    if (res.ok) {
-      setIsAuthenticated(true);
-      refreshData(); // Load data only after login
-    } else {
-      alert("Access Denied: Wrong Password");
+      if (res.ok) {
+        setIsAuthenticated(true);
+        refreshData(); 
+      } else {
+        alert("Access Denied: Wrong Password");
+      }
+    } catch (error) {
+      alert("Login Error: Could not connect to server");
     }
     setLoading(false);
   };
 
-  // --- 2. FETCH DATA (Only called after login) ---
+  // --- 2. FETCH DATA (Safe Version) ---
   const refreshData = () => {
     fetch('/api/admin/general')
-      .then(res => res.json())
       .then(res => {
-        setData(res);
+        if (!res.ok) throw new Error("Failed to fetch data");
+        return res.json();
+      })
+      .then(res => {
+        // Ensure we always have arrays, even if API returns null
+        setData({
+          teachers: Array.isArray(res.teachers) ? res.teachers : [],
+          students: Array.isArray(res.students) ? res.students : [],
+          pages: Array.isArray(res.pages) ? res.pages : [],
+          packages: Array.isArray(res.packages) ? res.packages : [],
+          totalRevenue: res.totalRevenue || 0
+        });
+      })
+      .catch(err => {
+        console.error("Admin Data Error:", err);
       });
   };
 
-  // --- ACTIONS (Verify, Delete, Save) ---
+  // --- ACTIONS ---
   const handleVerify = async (teacher: any) => {
     await fetch('/api/admin/general', {
       method: 'PUT',
@@ -90,6 +120,8 @@ export default function AdminDashboard() {
     refreshData();
   };
 
+  if (!mounted) return null;
+
   // --- RENDER LOGIN SCREEN ---
   if (!isAuthenticated) {
     return (
@@ -99,7 +131,7 @@ export default function AdminDashboard() {
             <Lock className="text-blue-600" size={32} />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Admin Access</h1>
-          <p className="text-gray-500 mb-6">Enter your master password to continue.</p>
+          <p className="text-gray-500 mb-6">Enter your master password.</p>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <input 
@@ -121,7 +153,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // --- RENDER DASHBOARD (Only shows if Authenticated) ---
+  // --- RENDER DASHBOARD ---
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -130,7 +162,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
           <h1 className="text-3xl font-bold text-gray-900">Admin Control Center</h1>
           <div className="bg-green-100 text-green-800 px-4 py-2 rounded-xl font-bold flex items-center gap-2">
-            <DollarSign size={20}/> Revenue: ₦{data.totalRevenue?.toLocaleString()}
+            <DollarSign size={20}/> Revenue: ₦{data.totalRevenue?.toLocaleString() || 0}
           </div>
         </div>
 
@@ -162,7 +194,8 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y text-sm">
-                {data.teachers.map((t: any) => (
+                {data.teachers.length === 0 ? <tr><td colSpan={6} className="p-4 text-center text-gray-500">No teachers found.</td></tr> : 
+                data.teachers.map((t: any) => (
                   <tr key={t.id} className="hover:bg-gray-50">
                     <td className="p-4">
                       <p className="font-bold text-gray-900">{t.name}</p>
@@ -170,7 +203,7 @@ export default function AdminDashboard() {
                     </td>
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${t.plan === 'gold' ? 'bg-yellow-100 text-yellow-800' : t.plan === 'silver' ? 'bg-gray-200 text-gray-800' : 'bg-orange-50 text-orange-800'}`}>
-                        {t.plan}
+                        {t.plan || 'Free'}
                       </span>
                     </td>
                     <td className="p-4">
@@ -186,7 +219,7 @@ export default function AdminDashboard() {
                       </button>
                     </td>
                     <td className="p-4">
-                      <button onClick={() => handleDelete(t.id, 'teacher')} className="text-red-400 hover:text-red-600 bg-red-50 p-2 rounded-lg">
+                      <button aria-label="Delete Teacher" onClick={() => handleDelete(t.id, 'teacher')} className="text-red-400 hover:text-red-600 bg-red-50 p-2 rounded-lg">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -210,13 +243,14 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y text-sm">
-                {data.students.map((s: any) => (
+                {data.students.length === 0 ? <tr><td colSpan={4} className="p-4 text-center text-gray-500">No students found.</td></tr> :
+                data.students.map((s: any) => (
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="p-4 font-bold">{s.name}</td>
                     <td className="p-4 text-gray-500">{s.email}</td>
                     <td className="p-4 text-gray-500">{new Date(s.createdAt).toLocaleDateString()}</td>
                     <td className="p-4">
-                      <button onClick={() => handleDelete(s.id, 'student')} className="text-red-400 hover:text-red-600 bg-red-50 p-2 rounded-lg">
+                      <button aria-label="Delete Student" onClick={() => handleDelete(s.id, 'student')} className="text-red-400 hover:text-red-600 bg-red-50 p-2 rounded-lg">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -230,6 +264,7 @@ export default function AdminDashboard() {
         {/* --- PACKAGES TAB --- */}
         {activeTab === 'packages' && (
           <div className="grid md:grid-cols-3 gap-8">
+            {/* List */}
             <div className="md:col-span-1 space-y-4">
               <button 
                 onClick={() => setEditingPackage({ name: '', price: '', description: '', features: '' })}
@@ -245,23 +280,24 @@ export default function AdminDashboard() {
                     <p className="text-green-600 font-bold text-sm">₦{pkg.price.toLocaleString()}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setEditingPackage(pkg)} className="text-blue-500 bg-blue-50 p-2 rounded-lg"><Edit size={16}/></button>
-                    <button onClick={() => handleDelete(pkg.id, 'package')} className="text-red-500 bg-red-50 p-2 rounded-lg"><Trash2 size={16}/></button>
+                    <button aria-label="Edit Package" onClick={() => setEditingPackage(pkg)} className="text-blue-500 bg-blue-50 p-2 rounded-lg"><Edit size={16}/></button>
+                    <button aria-label="Delete Package" onClick={() => handleDelete(pkg.id, 'package')} className="text-red-500 bg-red-50 p-2 rounded-lg"><Trash2 size={16}/></button>
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* Editor */}
             <div className="md:col-span-2">
               {editingPackage ? (
                 <form onSubmit={handleSavePackage} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
                   <h3 className="font-bold text-lg">{editingPackage.id ? 'Edit Package' : 'New Package'}</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <input required placeholder="Name (e.g. Gold Plan)" className="border p-3 rounded-lg" value={editingPackage.name} onChange={e => setEditingPackage({...editingPackage, name: e.target.value})}/>
-                    <input required type="number" placeholder="Price (₦)" className="border p-3 rounded-lg" value={editingPackage.price} onChange={e => setEditingPackage({...editingPackage, price: e.target.value})}/>
+                    <input aria-label="Package Name" required placeholder="Name (e.g. Gold Plan)" className="border p-3 rounded-lg" value={editingPackage.name} onChange={e => setEditingPackage({...editingPackage, name: e.target.value})}/>
+                    <input aria-label="Package Price" required type="number" placeholder="Price (₦)" className="border p-3 rounded-lg" value={editingPackage.price} onChange={e => setEditingPackage({...editingPackage, price: e.target.value})}/>
                   </div>
-                  <input required placeholder="Short Description" className="w-full border p-3 rounded-lg" value={editingPackage.description} onChange={e => setEditingPackage({...editingPackage, description: e.target.value})}/>
-                  <textarea required placeholder="Features (comma separated)" className="w-full border p-3 rounded-lg h-24" value={editingPackage.features} onChange={e => setEditingPackage({...editingPackage, features: e.target.value})}/>
+                  <input aria-label="Package Description" required placeholder="Short Description" className="w-full border p-3 rounded-lg" value={editingPackage.description} onChange={e => setEditingPackage({...editingPackage, description: e.target.value})}/>
+                  <textarea aria-label="Package Features" required placeholder="Features (comma separated)" className="w-full border p-3 rounded-lg h-24" value={editingPackage.features} onChange={e => setEditingPackage({...editingPackage, features: e.target.value})}/>
                   <div className="flex gap-3">
                     <button className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold">Save Package</button>
                     <button type="button" onClick={() => setEditingPackage(null)} className="bg-gray-100 text-gray-600 px-6 py-2 rounded-lg font-bold">Cancel</button>
@@ -285,7 +321,7 @@ export default function AdminDashboard() {
                 {data.pages.map((p: any) => (
                   <li key={p.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
                     <span className="font-medium">{p.title}</span>
-                    <button onClick={() => setEditingPage(p)} className="text-blue-500"><Edit size={16}/></button>
+                    <button aria-label="Edit Page" onClick={() => setEditingPage(p)} className="text-blue-500"><Edit size={16}/></button>
                   </li>
                 ))}
               </ul>
@@ -297,9 +333,9 @@ export default function AdminDashboard() {
             <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm">
               <h3 className="font-bold mb-4 text-xl">Page Editor</h3>
               <div className="space-y-4">
-                <input className="w-full border p-2 rounded-lg" placeholder="Page Title" value={editingPage.title} onChange={e => setEditingPage({...editingPage, title: e.target.value})}/>
-                <input className="w-full border p-2 rounded-lg bg-gray-50" placeholder="URL Slug (e.g. terms)" value={editingPage.slug} onChange={e => setEditingPage({...editingPage, slug: e.target.value})}/>
-                <textarea className="w-full border p-2 rounded-lg h-64 font-mono text-sm" placeholder="HTML Content..." value={editingPage.content} onChange={e => setEditingPage({...editingPage, content: e.target.value})}/>
+                <input aria-label="Page Title" className="w-full border p-2 rounded-lg" placeholder="Page Title" value={editingPage.title} onChange={e => setEditingPage({...editingPage, title: e.target.value})}/>
+                <input aria-label="Page Slug" className="w-full border p-2 rounded-lg bg-gray-50" placeholder="URL Slug (e.g. terms)" value={editingPage.slug} onChange={e => setEditingPage({...editingPage, slug: e.target.value})}/>
+                <textarea aria-label="Page Content" className="w-full border p-2 rounded-lg h-64 font-mono text-sm" placeholder="HTML Content..." value={editingPage.content} onChange={e => setEditingPage({...editingPage, content: e.target.value})}/>
                 <button onClick={handleSavePage} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"><Save size={18} /> Save Page</button>
               </div>
             </div>
