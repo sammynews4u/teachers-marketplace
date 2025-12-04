@@ -3,12 +3,12 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// GET: Fetch Everything (Teachers, Students, Pages, Packages, Stats)
+// GET: Fetch All Data for Dashboard
 export async function GET() {
   try {
     const teachers = await prisma.teacher.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { bookings: true } // To calculate revenue
+      include: { bookings: true }
     });
     const students = await prisma.student.findMany({
       orderBy: { createdAt: 'desc' }
@@ -18,7 +18,7 @@ export async function GET() {
       orderBy: { price: 'asc' }
     });
 
-    // Calculate Total Platform Revenue
+    // Calculate Revenue (excluding free trials)
     let totalRevenue = 0;
     teachers.forEach(t => {
       t.bookings.forEach(b => {
@@ -32,7 +32,7 @@ export async function GET() {
   }
 }
 
-// PUT: Handle Updates (Verify Teacher OR Update Package)
+// PUT: Handle Updates (Verify, Packages, Pages)
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
@@ -47,14 +47,33 @@ export async function PUT(req: Request) {
       return NextResponse.json(updated);
     }
 
-    // 2. Update/Create Package
+    // 2. Update OR Create Package
     if (action === 'update_package') {
-      const pkg = await prisma.package.upsert({
-        where: { id: id || "new" }, // If no ID, create new
-        update: { ...data, price: parseInt(data.price) },
-        create: { ...data, price: parseInt(data.price) }
-      });
-      return NextResponse.json(pkg);
+      // If we have an ID, it's an UPDATE
+      if (id) {
+        const pkg = await prisma.package.update({
+          where: { id },
+          data: { 
+            name: data.name,
+            price: parseInt(data.price),
+            description: data.description,
+            features: data.features
+          }
+        });
+        return NextResponse.json(pkg);
+      } 
+      // If NO ID, it's a CREATE
+      else {
+        const pkg = await prisma.package.create({
+          data: { 
+            name: data.name,
+            price: parseInt(data.price),
+            description: data.description,
+            features: data.features
+          }
+        });
+        return NextResponse.json(pkg);
+      }
     }
 
     // 3. Save Page (CMS)
@@ -69,6 +88,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });
   }
 }
