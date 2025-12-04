@@ -12,6 +12,10 @@ import {
 
 export default function TeacherDashboard() {
   const router = useRouter();
+  
+  // 1. ADD MOUNTED STATE TO FIX "WINDOW NOT DEFINED" ERROR
+  const [mounted, setMounted] = useState(false);
+
   const [teacher, setTeacher] = useState<any>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -32,13 +36,16 @@ export default function TeacherDashboard() {
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   useEffect(() => {
+    // 2. SET MOUNTED TO TRUE (This only runs in the browser)
+    setMounted(true);
+
     const id = localStorage.getItem('teacherId');
     if (!id) {
       router.push('/login');
       return;
     }
 
-    // 1. Fetch Teacher Data
+    // Fetch Teacher Data
     fetch('/api/teacher-dashboard', {
       method: 'POST',
       body: JSON.stringify({ teacherId: id }),
@@ -57,12 +64,14 @@ export default function TeacherDashboard() {
       }
     });
 
-    // 2. Fetch Courses
+    // Fetch Courses
     fetch(`/api/courses?teacherId=${id}`)
       .then(res => res.json())
       .then(data => setCourses(data));
 
   }, []);
+
+  // --- HANDLERS ---
 
   const handleFinishOnboarding = async () => {
     await fetch('/api/teacher-dashboard', {
@@ -127,6 +136,9 @@ export default function TeacherDashboard() {
     return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
   };
 
+  // 3. PREVENT SERVER RENDER OF BROWSER CONTENT
+  if (!mounted) return null;
+
   if (!teacher) return <div className="p-20 text-center text-blue-600 font-bold">Loading Dashboard...</div>;
 
   return (
@@ -178,6 +190,7 @@ export default function TeacherDashboard() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <p className="text-gray-500 font-medium">{getGreeting()},</p>
+              {/* PLAN BADGES */}
               {teacher.plan === 'gold' && <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-yellow-300 flex items-center gap-1"><Crown size={12}/> GOLD MEMBER</span>}
               {teacher.plan === 'silver' && <span className="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-300 flex items-center gap-1"><ShieldCheck size={12}/> SILVER MEMBER</span>}
             </div>
