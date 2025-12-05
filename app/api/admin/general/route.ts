@@ -3,125 +3,85 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// GET: Fetch Everything (Teachers, Students, Pages, Packages, Stats, AND FAQs)
+// GET: Fetch Everything (Force fresh data)
 export async function GET() {
   try {
-    const teachers = await prisma.teacher.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { bookings: true }
-    });
-    const students = await prisma.student.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
+    const teachers = await prisma.teacher.findMany({ orderBy: { createdAt: 'desc' }, include: { bookings: true } });
+    const students = await prisma.student.findMany({ orderBy: { createdAt: 'desc' } });
     const pages = await prisma.page.findMany();
-    
-    const packages = await prisma.package.findMany({
-      orderBy: { price: 'asc' }
-    });
+    const packages = await prisma.package.findMany({ orderBy: { price: 'asc' } });
+    const faqs = await prisma.fAQ.findMany({ orderBy: { createdAt: 'asc' } });
 
-    // --- NEW: Fetch FAQs ---
-    const faqs = await prisma.fAQ.findMany({
-      orderBy: { createdAt: 'asc' }
-    });
-
-    // Calculate Total Revenue
+    // Calculate Revenue
     let totalRevenue = 0;
     teachers.forEach(t => {
-      t.bookings.forEach(b => {
-        if(b.type !== 'trial') totalRevenue += b.amount;
-      });
+      t.bookings.forEach(b => { if(b.type !== 'trial') totalRevenue += b.amount; });
     });
 
+    // RETURN ALL DATA
     return NextResponse.json({ 
       teachers: teachers || [], 
       students: students || [], 
       pages: pages || [], 
       packages: packages || [], 
-      faqs: faqs || [], // Return FAQs
+      faqs: faqs || [],
       totalRevenue 
     });
 
   } catch (error) {
     console.error("Admin API Error:", error);
-    return NextResponse.json({ error: "Failed to load admin data" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load data" }, { status: 500 });
   }
 }
 
-// PUT: Handle Updates (Verify, Packages, Pages, AND FAQs)
+// PUT: Handle Updates
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
     const { action, id, data } = body;
 
-    // 1. Verify Teacher
     if (action === 'verify_teacher') {
-      const updated = await prisma.teacher.update({
-        where: { id },
-        data: { isVerified: data.isVerified }
-      });
-      return NextResponse.json(updated);
+      await prisma.teacher.update({ where: { id }, data: { isVerified: data.isVerified } });
     }
 
-    // 2. Update OR Create Package
     if (action === 'update_package') {
-      if (id && id !== "") {
-        const pkg = await prisma.package.update({
+      // If ID exists and is not empty string, update. Else create.
+      if (id && id.length > 5) { 
+        await prisma.package.update({
           where: { id },
-          data: { 
-            name: data.name,
-            price: parseInt(data.price),
-            description: data.description,
-            features: data.features
-          }
+          data: { name: data.name, price: parseInt(data.price), description: data.description, features: data.features }
         });
-        return NextResponse.json(pkg);
       } else {
-        const pkg = await prisma.package.create({
-          data: { 
-            name: data.name,
-            price: parseInt(data.price),
-            description: data.description,
-            features: data.features
-          }
+        await prisma.package.create({
+          data: { name: data.name, price: parseInt(data.price), description: data.description, features: data.features }
         });
-        return NextResponse.json(pkg);
       }
     }
 
-    // 3. Save Page (CMS)
     if (action === 'save_page') {
-      const page = await prisma.page.upsert({
+      await prisma.page.upsert({
         where: { slug: data.slug },
         update: { title: data.title, content: data.content },
         create: { slug: data.slug, title: data.title, content: data.content }
       });
-      return NextResponse.json(page);
     }
 
-    // 4. Update OR Create FAQ (--- NEW ---)
     if (action === 'update_faq') {
-      if (id && id !== "") {
-        const faq = await prisma.fAQ.update({
-          where: { id },
-          data: { question: data.question, answer: data.answer }
-        });
-        return NextResponse.json(faq);
+      if (id && id.length > 5) {
+        await prisma.fAQ.update({ where: { id }, data: { question: data.question, answer: data.answer } });
       } else {
-        const faq = await prisma.fAQ.create({
-          data: { question: data.question, answer: data.answer }
-        });
-        return NextResponse.json(faq);
+        await prisma.fAQ.create({ data: { question: data.question, answer: data.answer } });
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Update Error:", error);
+    console.error(error);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });
   }
 }
 
-// DELETE: Remove User, Package, or FAQ
+// DELETE: Remove Items
 export async function DELETE(req: Request) {
   try {
     const { id, type } = await req.json();
@@ -135,13 +95,8 @@ export async function DELETE(req: Request) {
       await prisma.booking.deleteMany({ where: { studentId: id } });
       await prisma.student.delete({ where: { id } });
     }
-    else if (type === 'package') {
-      await prisma.package.delete({ where: { id } });
-    }
-    // --- NEW: Delete FAQ ---
-    else if (type === 'faq') {
-      await prisma.fAQ.delete({ where: { id } });
-    }
+    else if (type === 'package') await prisma.package.delete({ where: { id } });
+    else if (type === 'faq') await prisma.fAQ.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
