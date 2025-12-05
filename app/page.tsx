@@ -5,13 +5,13 @@ import Footer from '../components/Footer';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../context/LanguageContext'; 
-import { CheckCircle2, Video, DollarSign, Users, Search, BookOpen, Star, ShieldCheck, Smartphone, HelpCircle } from 'lucide-react';
+import { CheckCircle2, Video, DollarSign, Users, Search, BookOpen, ShieldCheck, Smartphone, HelpCircle } from 'lucide-react';
 
 export default function Home() {
   const { t } = useLanguage(); 
   const [teachers, setTeachers] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]); 
-  const [faqs, setFaqs] = useState<any[]>([]); // <--- NEW: State for FAQs
+  const [faqs, setFaqs] = useState<any[]>([]); 
 
   useEffect(() => {
     // 1. Fetch Top Teachers
@@ -28,7 +28,7 @@ export default function Home() {
         if(Array.isArray(data)) setPackages(data);
       });
 
-    // 3. Fetch FAQs (NEW)
+    // 3. Fetch FAQs
     fetch('/api/faqs')
       .then((res) => res.json())
       .then((data) => {
@@ -43,10 +43,10 @@ export default function Home() {
       {/* 1. HERO SECTION */}
       <section className="pt-32 pb-20 px-4 bg-gradient-to-b from-blue-50 to-white">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 tracking-tight">
+          <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 tracking-tight leading-tight">
             {t.hero_title}
           </h1>
-          <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
             {t.hero_sub}
           </p>
           
@@ -64,9 +64,9 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 text-sm font-medium text-gray-500">
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500"/> 100% Online Lessons</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500"/> Verified Teachers</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500"/> Safe Payment Options</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500"/> {t.badge_online}</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500"/> {t.badge_verified}</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500"/> {t.badge_safe}</span>
           </div>
         </div>
       </section>
@@ -74,76 +74,77 @@ export default function Home() {
       {/* 2. HOW IT WORKS (STUDENTS) */}
       <section className="py-20 px-4 max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <span className="text-blue-600 font-bold tracking-wide uppercase text-sm">For Students</span>
-          <h2 className="text-3xl font-bold text-gray-900 mt-2">Learn English the Easy Way</h2>
+          <span className="text-blue-600 font-bold tracking-wide uppercase text-sm">{t.student_section_tag}</span>
+          <h2 className="text-3xl font-bold text-gray-900 mt-2">{t.student_title}</h2>
         </div>
 
         <div className="grid md:grid-cols-3 gap-10">
           <div className="text-center p-6 bg-gray-50 rounded-2xl">
-            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600">
-              <Search className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-bold mb-3">1. Search & Compare</h3>
-            <p className="text-gray-500">Browse profiles, check experience, prices, reviews, and availability.</p>
+            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Search className="w-8 h-8" /></div>
+            <h3 className="text-xl font-bold mb-3">{t.step_1_title}</h3>
+            <p className="text-gray-500">{t.step_1_desc}</p>
           </div>
           <div className="text-center p-6 bg-gray-50 rounded-2xl">
-            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600">
-              <BookOpen className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-bold mb-3">2. Book a Lesson</h3>
-            <p className="text-gray-500">Choose your schedule. Pay directly or through our secure gateway.</p>
+            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><BookOpen className="w-8 h-8" /></div>
+            <h3 className="text-xl font-bold mb-3">{t.step_2_title}</h3>
+            <p className="text-gray-500">{t.step_2_desc}</p>
           </div>
           <div className="text-center p-6 bg-gray-50 rounded-2xl">
-            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600">
-              <Video className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-bold mb-3">3. Start Learning</h3>
-            <p className="text-gray-500">Join your class through video call, chat, and shared study materials.</p>
+            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Video className="w-8 h-8" /></div>
+            <h3 className="text-xl font-bold mb-3">{t.step_3_title}</h3>
+            <p className="text-gray-500">{t.step_3_desc}</p>
           </div>
         </div>
       </section>
 
-      {/* 3. HOW IT WORKS (TEACHERS) */}
+      {/* 3. TEACHER BANNER */}
       <section className="py-20 bg-gray-900 text-white px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <span className="text-blue-400 font-bold tracking-wide uppercase text-sm">For Teachers</span>
-            <h2 className="text-3xl font-bold mt-2">Grow Your Teaching Business</h2>
+            <span className="text-blue-400 font-bold tracking-wide uppercase text-sm">{t.teacher_section_tag}</span>
+            <h2 className="text-3xl font-bold mt-2">{t.teacher_title}</h2>
           </div>
-
           <div className="grid md:grid-cols-3 gap-10">
             <div className="p-8 border border-gray-700 rounded-2xl hover:border-blue-500 transition">
-              <h3 className="text-xl font-bold mb-4 text-blue-400">1. Create Profile</h3>
-              <p className="text-gray-400">Add your experience, pricing, availability, intro video, and subjects.</p>
+              <h3 className="text-xl font-bold mb-4 text-blue-400">1. {t.t_step_1_title}</h3>
+              <p className="text-gray-400">{t.t_step_1_desc}</p>
             </div>
             <div className="p-8 border border-gray-700 rounded-2xl hover:border-blue-500 transition">
-              <h3 className="text-xl font-bold mb-4 text-blue-400">2. Get Paid</h3>
-              <p className="text-gray-400">Receive payments directly from students OR use our platform payment system.</p>
+              <h3 className="text-xl font-bold mb-4 text-blue-400">2. {t.t_step_2_title}</h3>
+              <p className="text-gray-400">{t.t_step_2_desc}</p>
             </div>
             <div className="p-8 border border-gray-700 rounded-2xl hover:border-blue-500 transition">
-              <h3 className="text-xl font-bold mb-4 text-blue-400">3. Get Students</h3>
-              <p className="text-gray-400">Boost your profile with Ad Packages or pay for the exact number of students you want.</p>
+              <h3 className="text-xl font-bold mb-4 text-blue-400">3. {t.t_step_3_title}</h3>
+              <p className="text-gray-400">{t.t_step_3_desc}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 4. PLATFORM FEATURES */}
+      {/* 4. FEATURES */}
       <section className="py-20 px-4 max-w-7xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-16">{t.features_title}</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {[
-            { icon: ShieldCheck, title: "Verified Teachers", desc: "Manually screened for quality." },
-            { icon: DollarSign, title: "Flexible Payments", desc: "Pay directly or via platform." },
-            { icon: Users, title: "Teacher Ads", desc: "Teachers get promoted to students." },
-            { icon: Smartphone, title: "Mobile Friendly", desc: "Learn from phone or laptop." },
-          ].map((feature, i) => (
-            <div key={i} className="flex flex-col items-center text-center">
-              <feature.icon className="w-10 h-10 text-blue-600 mb-4" />
-              <h4 className="font-bold mb-2">{feature.title}</h4>
-              <p className="text-sm text-gray-500">{feature.desc}</p>
-            </div>
-          ))}
+          <div className="flex flex-col items-center text-center">
+            <ShieldCheck className="w-10 h-10 text-blue-600 mb-4" />
+            <h4 className="font-bold mb-2">{t.feat_1_title}</h4>
+            <p className="text-sm text-gray-500">{t.feat_1_desc}</p>
+          </div>
+          <div className="flex flex-col items-center text-center">
+            <DollarSign className="w-10 h-10 text-blue-600 mb-4" />
+            <h4 className="font-bold mb-2">{t.feat_2_title}</h4>
+            <p className="text-sm text-gray-500">{t.feat_2_desc}</p>
+          </div>
+          <div className="flex flex-col items-center text-center">
+            <Users className="w-10 h-10 text-blue-600 mb-4" />
+            <h4 className="font-bold mb-2">{t.feat_3_title}</h4>
+            <p className="text-sm text-gray-500">{t.feat_3_desc}</p>
+          </div>
+          <div className="flex flex-col items-center text-center">
+            <Smartphone className="w-10 h-10 text-blue-600 mb-4" />
+            <h4 className="font-bold mb-2">{t.feat_4_title}</h4>
+            <p className="text-sm text-gray-500">{t.feat_4_desc}</p>
+          </div>
         </div>
       </section>
 
@@ -151,10 +152,8 @@ export default function Home() {
       <section className="py-20 bg-blue-50 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Meet Our Top English Teachers</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Discover experienced and certified English tutors ready to help you speak confidently.
-            </p>
+            <h2 className="text-3xl font-bold mb-4">{t.teachers_title}</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">{t.teachers_sub}</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -174,20 +173,20 @@ export default function Home() {
                   <div className="flex justify-between items-center border-t border-gray-100 pt-4">
                     <span className="font-bold">₦{t.hourlyRate.toLocaleString()}/hr</span>
                     <Link href={`/hire/${t.id}`} className="text-blue-600 font-bold text-sm hover:underline">
-                      View Profile
+                      {t.view_profile}
                     </Link>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-center w-full col-span-3 text-gray-500">Loading teachers from database...</p>
+              <p className="text-center w-full col-span-3 text-gray-500">{t.loading_teachers}</p>
             )}
           </div>
           
           <div className="text-center mt-10">
             <Link href="/teachers">
               <button className="px-8 py-3 border-2 border-gray-900 rounded-lg font-bold hover:bg-gray-900 hover:text-white transition">
-                View All Teachers
+                {t.view_all}
               </button>
             </Link>
           </div>
@@ -200,7 +199,7 @@ export default function Home() {
         
         {packages.length === 0 ? (
           <div className="text-center text-gray-500 bg-gray-50 p-10 rounded-xl">
-            <p>No packages configured yet. Go to Admin Dashboard to add plans.</p>
+            <p>{t.no_packages}</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-3 gap-6">
@@ -211,7 +210,7 @@ export default function Home() {
               >
                 <div>
                   {pkg.name.toLowerCase().includes('gold') && (
-                    <div className="absolute top-0 inset-x-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 uppercase tracking-widest rounded-t-lg">Recommended</div>
+                    <div className="absolute top-0 inset-x-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 uppercase tracking-widest rounded-t-lg">{t.recommended}</div>
                   )}
                   
                   <h3 className={`font-bold text-lg mb-2 mt-4 ${pkg.name.toLowerCase().includes('gold') ? 'text-yellow-600' : 'text-gray-900'}`}>
@@ -234,7 +233,7 @@ export default function Home() {
 
                 <Link href="/become-teacher">
                   <button className={`w-full py-3 rounded-xl font-bold transition ${pkg.name.toLowerCase().includes('gold') ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-                    {t.view_details}
+                    {t.view_plan}
                   </button>
                 </Link>
               </div>
@@ -243,11 +242,11 @@ export default function Home() {
         )}
       </section>
 
-      {/* 7. FAQ SECTION (NEW) */}
+      {/* 7. FAQ SECTION */}
       <section className="py-20 px-4 max-w-3xl mx-auto bg-white">
         <div className="text-center mb-12">
-          <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-sm font-semibold mb-4 inline-block">Support</span>
-          <h2 className="text-3xl font-bold text-gray-900">Frequently Asked Questions</h2>
+          <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-sm font-semibold mb-4 inline-block">{t.faq_tag}</span>
+          <h2 className="text-3xl font-bold text-gray-900">{t.faq_title}</h2>
         </div>
         
         <div className="space-y-4">
@@ -265,7 +264,7 @@ export default function Home() {
             ))
           ) : (
             <div className="text-center text-gray-500 py-10 bg-gray-50 rounded-2xl border border-dashed">
-              <p>No questions added by admin yet.</p>
+              <p>{t.no_faq}</p>
             </div>
           )}
         </div>
@@ -273,7 +272,7 @@ export default function Home() {
 
       {/* 8. FINAL CTA */}
       <section className="py-24 bg-blue-600 text-center px-4">
-        <h2 className="text-4xl font-bold text-white mb-8">Ready to Learn or Teach English?</h2>
+        <h2 className="text-4xl font-bold text-white mb-8">{t.cta_title}</h2>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link href="/become-teacher">
             <button className="px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-gray-100 transition">
