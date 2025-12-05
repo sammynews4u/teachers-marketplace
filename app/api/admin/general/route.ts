@@ -1,20 +1,35 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
+// 🛑 THIS LINE FIXES THE INVISIBLE ITEMS PROBLEM
+export const dynamic = 'force-dynamic'; 
+
 const prisma = new PrismaClient();
 
-export const dynamic = 'force-dynamic'; // <--- CRITICAL: Disables caching for this API
-
-// GET: Fetch Everything
+// GET: Fetch Everything (Always Fresh)
 export async function GET() {
   try {
-    const teachers = await prisma.teacher.findMany({ orderBy: { createdAt: 'desc' }, include: { bookings: true } });
-    const students = await prisma.student.findMany({ orderBy: { createdAt: 'desc' } });
-    const pages = await prisma.page.findMany();
-    const packages = await prisma.package.findMany({ orderBy: { price: 'asc' } });
-    const faqs = await prisma.fAQ.findMany({ orderBy: { createdAt: 'asc' } });
+    // 1. Fetch Packages
+    const packages = await prisma.package.findMany({
+      orderBy: { price: 'asc' }
+    });
 
-    // Calculate Revenue
+    // 2. Fetch FAQs
+    const faqs = await prisma.fAQ.findMany({
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // 3. Fetch Teachers & Students
+    const teachers = await prisma.teacher.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { bookings: true }
+    });
+    const students = await prisma.student.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    const pages = await prisma.page.findMany();
+
+    // 4. Calculate Revenue
     let totalRevenue = 0;
     teachers.forEach(t => {
       t.bookings.forEach(b => {
@@ -22,6 +37,7 @@ export async function GET() {
       });
     });
 
+    // 5. Return Data
     return NextResponse.json({ 
       teachers: teachers || [], 
       students: students || [], 
@@ -33,7 +49,11 @@ export async function GET() {
 
   } catch (error) {
     console.error("Admin API Error:", error);
-    return NextResponse.json({ error: "Failed to load admin data" }, { status: 500 });
+    // Return empty arrays instead of crashing so the dashboard still loads
+    return NextResponse.json({ 
+      teachers: [], students: [], pages: [], packages: [], faqs: [], totalRevenue: 0, 
+      error: "Failed to load data" 
+    });
   }
 }
 
@@ -43,37 +63,26 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { action, id, data } = body;
 
-    // 1. Verify Teacher
+    // Verify Teacher
     if (action === 'verify_teacher') {
       await prisma.teacher.update({ where: { id }, data: { isVerified: data.isVerified } });
     }
 
-    // 2. Update OR Create Package
+    // Update/Create Package
     if (action === 'update_package') {
-      // Check if ID is a valid string and not just "new" or empty
-      if (id && id.length > 10) { 
+      if (id && id.length > 5) { 
         await prisma.package.update({
           where: { id },
-          data: { 
-            name: data.name, 
-            price: parseInt(data.price), 
-            description: data.description, 
-            features: data.features 
-          }
+          data: { name: data.name, price: parseInt(data.price), description: data.description, features: data.features }
         });
       } else {
         await prisma.package.create({
-          data: { 
-            name: data.name, 
-            price: parseInt(data.price), 
-            description: data.description, 
-            features: data.features 
-          }
+          data: { name: data.name, price: parseInt(data.price), description: data.description, features: data.features }
         });
       }
     }
 
-    // 3. Save Page (CMS)
+    // Save Page
     if (action === 'save_page') {
       await prisma.page.upsert({
         where: { slug: data.slug },
@@ -82,9 +91,9 @@ export async function PUT(req: Request) {
       });
     }
 
-    // 4. Update OR Create FAQ
+    // Update/Create FAQ
     if (action === 'update_faq') {
-      if (id && id.length > 10) {
+      if (id && id.length > 5) {
         await prisma.fAQ.update({ 
           where: { id }, 
           data: { question: data.question, answer: data.answer } 
