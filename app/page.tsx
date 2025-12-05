@@ -4,27 +4,35 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useLanguage } from '../context/LanguageContext'; // Import Language Hook
-import { CheckCircle2, Video, DollarSign, Users, Search, BookOpen, Star, ShieldCheck, Smartphone } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext'; 
+import { CheckCircle2, Video, DollarSign, Users, Search, BookOpen, Star, ShieldCheck, Smartphone, HelpCircle } from 'lucide-react';
 
 export default function Home() {
-  const { t } = useLanguage(); // Get active translations
+  const { t } = useLanguage(); 
   const [teachers, setTeachers] = useState<any[]>([]);
-  const [packages, setPackages] = useState<any[]>([]); // Store dynamic packages
+  const [packages, setPackages] = useState<any[]>([]); 
+  const [faqs, setFaqs] = useState<any[]>([]); // <--- NEW: State for FAQs
 
   useEffect(() => {
-    // 1. Fetch Top Teachers (Sorted by Rank/Sales)
+    // 1. Fetch Top Teachers
     fetch('/api/teachers')
       .then((res) => res.json())
       .then((data) => {
         if(Array.isArray(data)) setTeachers(data.slice(0, 3));
       });
 
-    // 2. Fetch Packages (Dynamic from Admin DB)
+    // 2. Fetch Packages
     fetch('/api/public/packages')
       .then((res) => res.json())
       .then((data) => {
         if(Array.isArray(data)) setPackages(data);
+      });
+
+    // 3. Fetch FAQs (NEW)
+    fetch('/api/faqs')
+      .then((res) => res.json())
+      .then((data) => {
+        if(Array.isArray(data)) setFaqs(data);
       });
   }, []);
 
@@ -139,7 +147,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 5. TOP TEACHERS (Synced with Backend) */}
+      {/* 5. TOP TEACHERS */}
       <section className="py-20 bg-blue-50 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -186,7 +194,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6. DYNAMIC PACKAGES (Fetched from Database) */}
+      {/* 6. DYNAMIC PACKAGES */}
       <section className="py-20 px-4 max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-12">{t.packages_title}</h2>
         
@@ -235,7 +243,35 @@ export default function Home() {
         )}
       </section>
 
-      {/* 9. FINAL CTA */}
+      {/* 7. FAQ SECTION (NEW) */}
+      <section className="py-20 px-4 max-w-3xl mx-auto bg-white">
+        <div className="text-center mb-12">
+          <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-sm font-semibold mb-4 inline-block">Support</span>
+          <h2 className="text-3xl font-bold text-gray-900">Frequently Asked Questions</h2>
+        </div>
+        
+        <div className="space-y-4">
+          {faqs.length > 0 ? (
+            faqs.map((faq) => (
+              <div key={faq.id} className="bg-gray-50 p-6 rounded-2xl border border-gray-100 hover:border-blue-200 transition">
+                <div className="flex gap-4">
+                  <div className="mt-1"><HelpCircle className="text-blue-500 w-5 h-5"/></div>
+                  <div>
+                    <h3 className="font-bold text-lg text-gray-900 mb-2">{faq.question}</h3>
+                    <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center text-gray-500 py-10 bg-gray-50 rounded-2xl border border-dashed">
+              <p>No questions added by admin yet.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 8. FINAL CTA */}
       <section className="py-24 bg-blue-600 text-center px-4">
         <h2 className="text-4xl font-bold text-white mb-8">Ready to Learn or Teach English?</h2>
         <div className="flex flex-col sm:flex-row justify-center gap-4">

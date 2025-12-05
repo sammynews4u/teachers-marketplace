@@ -93,3 +93,9 @@ model Package {
   description String
   features    String 
 }
+model FAQ {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+}

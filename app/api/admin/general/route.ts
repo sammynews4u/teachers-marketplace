@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// GET: Fetch Everything
+// GET: Fetch Everything (Teachers, Students, Pages, Packages, Stats, AND FAQs)
 export async function GET() {
   try {
     const teachers = await prisma.teacher.findMany({
@@ -15,9 +15,13 @@ export async function GET() {
     });
     const pages = await prisma.page.findMany();
     
-    // Explicitly fetch packages with error catching
     const packages = await prisma.package.findMany({
       orderBy: { price: 'asc' }
+    });
+
+    // --- NEW: Fetch FAQs ---
+    const faqs = await prisma.fAQ.findMany({
+      orderBy: { createdAt: 'asc' }
     });
 
     // Calculate Total Revenue
@@ -32,7 +36,8 @@ export async function GET() {
       teachers: teachers || [], 
       students: students || [], 
       pages: pages || [], 
-      packages: packages || [], // Ensure this is never undefined
+      packages: packages || [], 
+      faqs: faqs || [], // Return FAQs
       totalRevenue 
     });
 
@@ -42,7 +47,7 @@ export async function GET() {
   }
 }
 
-// PUT: Handle Updates (Verify, Packages, Pages)
+// PUT: Handle Updates (Verify, Packages, Pages, AND FAQs)
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
@@ -59,7 +64,6 @@ export async function PUT(req: Request) {
 
     // 2. Update OR Create Package
     if (action === 'update_package') {
-      // Logic: If ID exists and isn't empty, Update. Otherwise, Create.
       if (id && id !== "") {
         const pkg = await prisma.package.update({
           where: { id },
@@ -94,6 +98,22 @@ export async function PUT(req: Request) {
       return NextResponse.json(page);
     }
 
+    // 4. Update OR Create FAQ (--- NEW ---)
+    if (action === 'update_faq') {
+      if (id && id !== "") {
+        const faq = await prisma.fAQ.update({
+          where: { id },
+          data: { question: data.question, answer: data.answer }
+        });
+        return NextResponse.json(faq);
+      } else {
+        const faq = await prisma.fAQ.create({
+          data: { question: data.question, answer: data.answer }
+        });
+        return NextResponse.json(faq);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Update Error:", error);
@@ -101,7 +121,7 @@ export async function PUT(req: Request) {
   }
 }
 
-// DELETE: Remove User or Package
+// DELETE: Remove User, Package, or FAQ
 export async function DELETE(req: Request) {
   try {
     const { id, type } = await req.json();
@@ -117,6 +137,10 @@ export async function DELETE(req: Request) {
     }
     else if (type === 'package') {
       await prisma.package.delete({ where: { id } });
+    }
+    // --- NEW: Delete FAQ ---
+    else if (type === 'faq') {
+      await prisma.fAQ.delete({ where: { id } });
     }
 
     return NextResponse.json({ success: true });

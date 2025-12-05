@@ -3,7 +3,8 @@
 import Navbar from '../../components/Navbar';
 import { useEffect, useState } from 'react';
 import { 
-  Trash2, Edit, Users, DollarSign, Lock, ArrowRight, Save, Plus, CheckCircle2, Package as PackageIcon, FileText
+  Trash2, Edit, Users, DollarSign, Lock, ArrowRight, Save, Plus, 
+  CheckCircle2, Package as PackageIcon, FileText, HelpCircle 
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -20,6 +21,7 @@ export default function AdminDashboard() {
     students: [], 
     pages: [], 
     packages: [], 
+    faqs: [], // Added FAQs
     totalRevenue: 0 
   });
   
@@ -28,9 +30,13 @@ export default function AdminDashboard() {
   // EDITORS STATE
   const [editingPage, setEditingPage] = useState({ slug: '', title: '', content: '' });
   
-  // Package State
-  const [editingPackage, setEditingPackage] = useState<any>(null); // Holds object being edited
-  const [showPackageForm, setShowPackageForm] = useState(false);   // Toggles form
+  // Package Editor
+  const [editingPackage, setEditingPackage] = useState<any>(null); 
+  const [showPackageForm, setShowPackageForm] = useState(false);
+
+  // FAQ Editor
+  const [editingFAQ, setEditingFAQ] = useState<any>(null);
+  const [showFAQForm, setShowFAQForm] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -68,12 +74,12 @@ export default function AdminDashboard() {
         return res.json();
       })
       .then(res => {
-        console.log("Admin Data Loaded:", res); // Debugging line
         setData({
           teachers: Array.isArray(res.teachers) ? res.teachers : [],
           students: Array.isArray(res.students) ? res.students : [],
           pages: Array.isArray(res.pages) ? res.pages : [],
           packages: Array.isArray(res.packages) ? res.packages : [],
+          faqs: Array.isArray(res.faqs) ? res.faqs : [],
           totalRevenue: res.totalRevenue || 0
         });
       })
@@ -100,6 +106,7 @@ export default function AdminDashboard() {
     refreshData();
   };
 
+  // --- SAVE PAGE ---
   const handleSavePage = async () => {
     await fetch('/api/admin/general', {
       method: 'PUT',
@@ -129,6 +136,25 @@ export default function AdminDashboard() {
     refreshData();
   };
 
+  // --- SAVE FAQ ---
+  const handleSaveFAQ = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await fetch('/api/admin/general', {
+      method: 'PUT',
+      body: JSON.stringify({ 
+        action: 'update_faq', 
+        id: editingFAQ.id, 
+        data: editingFAQ 
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    alert("FAQ Saved!");
+    setShowFAQForm(false);
+    setEditingFAQ(null);
+    refreshData();
+  };
+
+  // --- HELPER OPENERS ---
   const openNewPackage = () => {
     setEditingPackage({ id: '', name: '', price: '', description: '', features: '' });
     setShowPackageForm(true);
@@ -174,8 +200,12 @@ export default function AdminDashboard() {
 
         {/* TABS */}
         <div className="flex flex-wrap gap-4 mb-8 bg-white p-2 rounded-xl shadow-sm w-fit">
-          {['teachers', 'students', 'packages', 'pages'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2 rounded-lg font-bold capitalize transition ${activeTab === tab ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+          {['teachers', 'students', 'packages', 'pages', 'faqs'].map(tab => (
+            <button 
+              key={tab}
+              onClick={() => setActiveTab(tab)} 
+              className={`px-6 py-2 rounded-lg font-bold capitalize transition ${activeTab === tab ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
               {tab}
             </button>
           ))}
@@ -230,15 +260,12 @@ export default function AdminDashboard() {
         {/* --- PACKAGES TAB --- */}
         {activeTab === 'packages' && (
           <div className="space-y-6">
-            
-            {/* Show 'Add' button if not editing */}
             {!showPackageForm && (
               <button onClick={openNewPackage} className="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-800 transition">
                 <Plus size={20}/> Add New Package
               </button>
             )}
 
-            {/* CREATE/EDIT FORM */}
             {showPackageForm && editingPackage && (
               <form onSubmit={handleSavePackage} className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 animate-in fade-in">
                 <h3 className="font-bold text-xl mb-4">{editingPackage.id ? 'Edit Package' : 'New Package'}</h3>
@@ -255,15 +282,11 @@ export default function AdminDashboard() {
               </form>
             )}
 
-            {/* LIST */}
             <div className="grid md:grid-cols-3 gap-6">
               {data.packages.map((pkg: any) => (
                 <div key={pkg.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 relative hover:shadow-md transition">
                   <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h4 className="font-bold text-lg">{pkg.name}</h4>
-                      <p className="text-gray-500 text-sm">{pkg.description}</p>
-                    </div>
+                    <div><h4 className="font-bold text-lg">{pkg.name}</h4><p className="text-gray-500 text-sm">{pkg.description}</p></div>
                     <span className="bg-blue-50 text-blue-700 font-bold px-3 py-1 rounded-lg">₦{pkg.price.toLocaleString()}</span>
                   </div>
                   <ul className="text-sm text-gray-600 space-y-2 mb-6 h-20 overflow-hidden">
@@ -288,7 +311,7 @@ export default function AdminDashboard() {
                 {data.pages.map((p: any) => (
                   <li key={p.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
                     <span className="font-medium">{p.title}</span>
-                    <button aria-label="Edit Page" onClick={() => setEditingPage(p)} className="text-blue-500"><Edit size={16}/></button>
+                    <button aria-label="Edit" onClick={() => setEditingPage(p)} className="text-blue-500"><Edit size={16}/></button>
                   </li>
                 ))}
               </ul>
@@ -297,11 +320,48 @@ export default function AdminDashboard() {
             <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm">
               <h3 className="font-bold mb-4 text-xl">Page Editor</h3>
               <div className="space-y-4">
-                <input aria-label="Page Title" className="w-full border p-2 rounded-lg" placeholder="Page Title" value={editingPage.title} onChange={e => setEditingPage({...editingPage, title: e.target.value})}/>
-                <input aria-label="Page Slug" className="w-full border p-2 rounded-lg bg-gray-50" placeholder="URL Slug (e.g. terms)" value={editingPage.slug} onChange={e => setEditingPage({...editingPage, slug: e.target.value})}/>
-                <textarea aria-label="Page Content" className="w-full border p-2 rounded-lg h-64 font-mono text-sm" placeholder="HTML Content..." value={editingPage.content} onChange={e => setEditingPage({...editingPage, content: e.target.value})}/>
+                <input aria-label="Title" className="w-full border p-2 rounded-lg" placeholder="Page Title" value={editingPage.title} onChange={e => setEditingPage({...editingPage, title: e.target.value})}/>
+                <input aria-label="Slug" className="w-full border p-2 rounded-lg bg-gray-50" placeholder="URL Slug (e.g. terms)" value={editingPage.slug} onChange={e => setEditingPage({...editingPage, slug: e.target.value})}/>
+                <textarea aria-label="Content" className="w-full border p-2 rounded-lg h-64 font-mono text-sm" placeholder="HTML Content..." value={editingPage.content} onChange={e => setEditingPage({...editingPage, content: e.target.value})}/>
                 <button onClick={handleSavePage} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"><Save size={18} /> Save Page</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- FAQs TAB --- */}
+        {activeTab === 'faqs' && (
+          <div className="space-y-6">
+            {!showFAQForm && (
+              <button onClick={() => { setShowFAQForm(true); setEditingFAQ({ id: '', question: '', answer: '' }); }} className="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-800">
+                <Plus size={20}/> Add FAQ
+              </button>
+            )}
+            
+            {showFAQForm && editingFAQ && (
+              <form onSubmit={handleSaveFAQ} className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 animate-in fade-in">
+                <h3 className="font-bold text-lg mb-4">FAQ Editor</h3>
+                <input aria-label="Question" required placeholder="Question" className="border p-3 rounded-lg w-full mb-4" value={editingFAQ.question} onChange={e => setEditingFAQ({...editingFAQ, question: e.target.value})}/>
+                <textarea aria-label="Answer" required placeholder="Answer" className="border p-3 rounded-lg w-full h-32 mb-4" value={editingFAQ.answer} onChange={e => setEditingFAQ({...editingFAQ, answer: e.target.value})}/>
+                <div className="flex gap-2">
+                  <button className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold">Save FAQ</button>
+                  <button type="button" onClick={() => setShowFAQForm(false)} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg font-bold">Cancel</button>
+                </div>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              {data.faqs.length === 0 && <p className="text-gray-500">No FAQs yet.</p>}
+              {data.faqs.map((faq: any) => (
+                <div key={faq.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative group">
+                  <h4 className="font-bold text-gray-900 mb-2">{faq.question}</h4>
+                  <p className="text-gray-600 text-sm">{faq.answer}</p>
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                    <button aria-label="Edit FAQ" onClick={() => { setEditingFAQ(faq); setShowFAQForm(true); }} className="text-blue-500 bg-blue-50 p-2 rounded-lg"><Edit size={16}/></button>
+                    <button aria-label="Delete FAQ" onClick={() => handleDelete(faq.id, 'faq')} className="text-red-500 bg-red-50 p-2 rounded-lg"><Trash2 size={16}/></button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
