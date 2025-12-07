@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { sendEmail } from '@/lib/email';
 
 const prisma = new PrismaClient();
 
@@ -14,6 +15,21 @@ export async function POST(req: Request) {
     const student = await prisma.student.create({
       data: { name, email, password }
     });
+    const student = await prisma.student.create({
+      data: { name, email, password }
+    });
+
+    // --- NEW: SEND EMAIL ---
+    await sendEmail(
+      email,
+      "Welcome to TeachersB - Student Account",
+      `<h1>Hi ${name}!</h1>
+       <p>Your student account has been created successfully.</p>
+       <p>You can now browse teachers and book your first lesson.</p>
+       <br/>
+       <a href="https://your-website.vercel.app/teachers">Find a Teacher</a>`
+    );
+    // -----------------------
 
     return NextResponse.json({ success: true, student });
   } catch (error) {
