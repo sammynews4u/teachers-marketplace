@@ -12,14 +12,12 @@ export async function POST(req: Request) {
     const existing = await prisma.student.findUnique({ where: { email } });
     if (existing) return NextResponse.json({ error: 'Email exists' }, { status: 400 });
 
-    const student = await prisma.student.create({
-      data: { name, email, password }
-    });
+    // Create Student (ONCE)
     const student = await prisma.student.create({
       data: { name, email, password }
     });
 
-    // --- NEW: SEND EMAIL ---
+    // Send Welcome Email
     await sendEmail(
       email,
       "Welcome to TeachersB - Student Account",
@@ -27,9 +25,8 @@ export async function POST(req: Request) {
        <p>Your student account has been created successfully.</p>
        <p>You can now browse teachers and book your first lesson.</p>
        <br/>
-       <a href="https://your-website.vercel.app/teachers">Find a Teacher</a>`
+       <a href="https://teachers-marketplace.vercel.app/teachers">Find a Teacher</a>`
     );
-    // -----------------------
 
     return NextResponse.json({ success: true, student });
   } catch (error) {
