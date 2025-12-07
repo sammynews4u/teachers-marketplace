@@ -42,18 +42,21 @@ model Student {
 }
 
 model Course {
-  id          String    @id @default(uuid())
-  title       String
-  description String
-  price       Int
-  startDate   DateTime
-  endDate     DateTime
-  schedule    String    
-  createdAt   DateTime  @default(now())
-
-  teacherId   String
-  teacher     Teacher   @relation(fields: [teacherId], references: [id])
-  bookings    Booking[]
+  id           String    @id @default(uuid())
+  title        String
+  description  String
+  price        Int
+  startDate    DateTime
+  endDate      DateTime
+  schedule     String    
+  
+  // --- NEW FIELD ---
+  classroomUrl String?   // Stores the Google Classroom Invite Link
+  
+  createdAt    DateTime  @default(now())
+  teacherId    String
+  teacher      Teacher   @relation(fields: [teacherId], references: [id])
+  bookings     Booking[]
 }
 
 model Booking {

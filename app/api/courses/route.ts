@@ -3,11 +3,11 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// POST: Create a New Course
+// POST: Create a New Course (Language Cohort)
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { teacherId, title, description, price, startDate, endDate, schedule } = body;
+    const { teacherId, title, description, price, startDate, endDate, schedule, classroomUrl } = body;
 
     const course = await prisma.course.create({
       data: {
@@ -17,7 +17,8 @@ export async function POST(req: Request) {
         price: parseInt(price),
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        schedule
+        schedule,
+        classroomUrl: classroomUrl || "" // Store Google Classroom Link
       }
     });
 
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   }
 }
 
-// GET: Fetch Courses (Can filter by teacherId)
+// GET: Fetch Courses
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const teacherId = searchParams.get('teacherId');
