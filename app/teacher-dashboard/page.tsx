@@ -48,7 +48,7 @@ export default function TeacherDashboard() {
       return;
     }
 
-    // 1. Fetch Teacher Data with Safety Checks
+    // 1. Fetch Teacher Data
     fetch('/api/teacher-dashboard', {
       method: 'POST',
       body: JSON.stringify({ teacherId: id }),
@@ -58,13 +58,11 @@ export default function TeacherDashboard() {
       return res.json();
     })
     .then(data => {
-      if (!data) {
-        throw new Error("No data returned");
-      }
+      if (!data) throw new Error("No data returned");
       
       setTeacher(data);
       
-      // Trigger Onboarding
+      // Trigger Onboarding if not done
       if (data.hasOnboarded === false) {
         setShowOnboarding(true);
       }
@@ -79,7 +77,6 @@ export default function TeacherDashboard() {
     })
     .catch(err => {
       console.error("Dashboard Load Error:", err);
-      // Only redirect if it's a critical auth failure
       if (!teacher) router.push('/login');
     });
 
@@ -97,12 +94,21 @@ export default function TeacherDashboard() {
 
   const handleFinishOnboarding = async () => {
     if (!teacher) return;
+    
+    // 1. Save to DB
     await fetch('/api/teacher-dashboard', {
       method: 'PUT',
       body: JSON.stringify({ ...teacher, hasOnboarded: true }),
     });
+    
+    // 2. Close Popup
     setShowOnboarding(false);
-    alert("Welcome aboard! You are now live.");
+    
+    // 3. FORCE REDIRECT TO BOOST TAB (The Upsell)
+    setActiveTab('boost');
+    
+    // 4. Alert
+    alert("Welcome aboard! Please select an Advertising Plan to start getting students.");
   };
 
   const handleUpdateProfile = async () => {
@@ -164,9 +170,7 @@ export default function TeacherDashboard() {
     return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
   };
 
-  // Prevent hydration mismatch
   if (!mounted) return null;
-
   if (!teacher) return <div className="p-20 text-center text-blue-600 font-bold">Loading Dashboard...</div>;
 
   return (
