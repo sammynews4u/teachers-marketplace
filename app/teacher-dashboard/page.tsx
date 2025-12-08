@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from '../../components/Navbar';
-import ChatWindow from '../../components/ChatWindow';
+import ChatWindow from '../../components/ChatWindow'; // Import Chat Component
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -11,7 +11,7 @@ import {
   CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone 
 } from 'lucide-react';
 
-// Dynamic Import for Paystack
+// Dynamic Import for Paystack (Prevents SSR errors)
 const PaystackButton = dynamic(
   () => import('react-paystack').then((mod) => mod.PaystackButton),
   { ssr: false }
@@ -24,20 +24,20 @@ export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<any>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState('classroom'); 
+  const [activeTab, setActiveTab] = useState('classroom'); // 'classroom', 'courses', 'boost', 'messages'
   const [earnings, setEarnings] = useState(0);
 
   // ONBOARDING
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
 
-  // COURSE FORM (With Classroom URL)
+  // COURSE FORM
   const [newCourse, setNewCourse] = useState({
     title: '', description: '', price: '', startDate: '', endDate: '', schedule: '', classroomUrl: ''
   });
   const [showCourseForm, setShowCourseForm] = useState(false);
 
-  // PAYSTACK
+  // PAYSTACK KEY
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function TeacherDashboard() {
     const id = localStorage.getItem('teacherId');
     if (!id) { router.push('/login'); return; }
 
-    // Fetch Teacher
+    // 1. Fetch Teacher Data
     fetch('/api/teacher-dashboard', { method: 'POST', body: JSON.stringify({ teacherId: id }) })
     .then(res => res.json())
     .then(data => {
@@ -57,11 +57,12 @@ export default function TeacherDashboard() {
       }
     });
 
-    // Fetch Courses
+    // 2. Fetch Courses
     fetch(`/api/courses?teacherId=${id}`).then(res => res.json()).then(data => setCourses(data));
   }, []);
 
-  // HANDLERS
+  // --- HANDLERS ---
+
   const handleFinishOnboarding = async () => {
     if (!teacher) return;
     await fetch('/api/teacher-dashboard', { method: 'PUT', body: JSON.stringify({ ...teacher, hasOnboarded: true }) });
@@ -108,14 +109,14 @@ export default function TeacherDashboard() {
     <div className="min-h-screen bg-gray-50 relative pt-16"> 
       <Navbar />
 
-      {/* ALERT */}
+      {/* UPGRADE ALERT */}
       {teacher.plan === 'free' && (
         <div onClick={() => setActiveTab('boost')} className="bg-gradient-to-r from-orange-500 to-red-600 text-white p-3 text-center cursor-pointer hover:opacity-90 transition shadow-md group">
           <p className="font-bold text-sm flex items-center justify-center gap-2 animate-pulse"><Megaphone size={20} /> UPGRADE TO GET MORE STUDENTS! <span className="underline">Boost Now</span><ArrowRight size={18} /></p>
         </div>
       )}
 
-      {/* ONBOARDING */}
+      {/* ONBOARDING MODAL */}
       {showOnboarding && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
@@ -150,16 +151,27 @@ export default function TeacherDashboard() {
       )}
       
       <div className="pt-8 pb-12 px-4 max-w-7xl mx-auto">
+        
+        {/* HEADER */}
         <div className="flex justify-between items-end mb-10">
-          <div><p className="text-gray-500 font-medium">{getGreeting()},</p><h1 className="text-4xl font-bold text-gray-900">{teacher.name} 👋</h1></div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-gray-500 font-medium">{getGreeting()},</p>
+              {teacher.plan === 'gold' && <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-yellow-300 flex items-center gap-1"><Crown size={12}/> GOLD</span>}
+              {teacher.plan === 'silver' && <span className="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-300 flex items-center gap-1"><ShieldCheck size={12}/> SILVER</span>}
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900">{teacher.name} 👋</h1>
+          </div>
           <button onClick={() => { localStorage.removeItem('teacherId'); router.push('/'); }} className="text-red-500 font-medium">Log Out</button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* PROFILE CARD */}
+          
+          {/* LEFT: PROFILE & EARNINGS */}
           <div className="space-y-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border text-center">
-               <img src={teacher.image} className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4"/>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border text-center relative overflow-hidden">
+               <div className={`absolute top-0 left-0 w-full h-20 bg-gradient-to-r ${teacher.plan === 'gold' ? 'from-yellow-400 to-orange-500' : 'from-blue-600 to-purple-600'}`}></div>
+               <img src={teacher.image} className="relative w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4 mt-8"/>
                {isEditing ? (
                   <div className="space-y-3">
                     <input aria-label="Name" value={teacher.name} onChange={e => setTeacher({...teacher, name: e.target.value})} className="border p-2 w-full rounded text-sm"/>
@@ -179,22 +191,36 @@ export default function TeacherDashboard() {
             <div className="bg-white p-5 rounded-2xl shadow-sm border"><p className="text-gray-500 text-xs font-bold uppercase">Earnings</p><p className="text-2xl font-bold text-green-600">₦{earnings.toLocaleString()}</p></div>
           </div>
 
+          {/* RIGHT: CONTENT TABS */}
           <div className="lg:col-span-2">
-            <div className="flex gap-4 mb-6 bg-gray-200 p-1 rounded-2xl w-fit">
+            
+            {/* TAB BUTTONS */}
+            <div className="flex flex-wrap gap-4 mb-6 bg-gray-200 p-1 rounded-2xl w-fit">
               <button onClick={() => setActiveTab('classroom')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'classroom' ? 'bg-white shadow' : 'text-gray-500'}`}>Classroom</button>
               <button onClick={() => setActiveTab('courses')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'courses' ? 'bg-white shadow' : 'text-gray-500'}`}>My Courses</button>
+              <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow' : 'text-gray-500'}`}>Messages</button>
               <button onClick={() => setActiveTab('boost')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'boost' ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow' : 'text-gray-500'}`}>🚀 Boost</button>
             </div>
 
+            {/* TAB 1: CLASSROOM */}
             {activeTab === 'classroom' && (
-              <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <div className="bg-white rounded-2xl shadow-sm border p-6 animate-in fade-in">
                  <h3 className="font-bold text-lg mb-4">Students Enrolled</h3>
                  {teacher.bookings?.length === 0 ? <p className="text-gray-400">No students yet.</p> : (
                    <div className="divide-y">
                      {teacher.bookings.map((b: any) => (
                        <div key={b.id} className="py-4 flex justify-between items-center">
-                         <div className="flex gap-3 items-center"><img src={`https://api.dicebear.com/7.x/initials/svg?seed=${b.student?.name}`} className="w-10 h-10 rounded-full"/><div><p className="font-bold">{b.student?.name}</p><p className="text-xs text-gray-500">{b.type}</p></div></div>
-                         <button aria-label="Chat" className="text-blue-600 bg-blue-50 p-2 rounded-lg"><MessageSquare size={18}/></button>
+                         <div className="flex gap-3 items-center">
+                           <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${b.student?.name}`} className="w-10 h-10 rounded-full bg-gray-100"/>
+                           <div>
+                             <p className="font-bold">{b.student?.name}</p>
+                             <p className="text-xs text-gray-500 flex items-center gap-1">
+                               {b.type === 'trial' ? 'Free Trial' : 'Paid Student'}
+                               {b.scheduledAt && <span className="text-orange-500 font-bold ml-1">• {new Date(b.scheduledAt).toLocaleDateString()}</span>}
+                             </p>
+                           </div>
+                         </div>
+                         <button onClick={() => setActiveTab('messages')} aria-label="Chat" className="text-blue-600 bg-blue-50 p-2 rounded-lg hover:bg-blue-100 transition"><MessageSquare size={18}/></button>
                        </div>
                      ))}
                    </div>
@@ -202,12 +228,14 @@ export default function TeacherDashboard() {
               </div>
             )}
 
+            {/* TAB 2: COURSES */}
             {activeTab === 'courses' && (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-in fade-in">
                 {!showCourseForm && <button onClick={() => setShowCourseForm(true)} className="w-full py-6 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold hover:border-blue-500 flex justify-center items-center gap-2"><Plus size={20} /> Create New Cohort</button>}
                 
                 {showCourseForm && (
-                  <form onSubmit={handleCreateCourse} className="bg-white p-6 rounded-xl shadow-lg border space-y-4">
+                  <form onSubmit={handleCreateCourse} className="bg-white p-6 rounded-xl shadow-lg border space-y-4 relative">
+                    <button type="button" onClick={() => setShowCourseForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold">Cancel</button>
                     <h3 className="font-bold text-lg">New Language Course</h3>
                     <input aria-label="Title" required placeholder="Title (e.g. Beginners French)" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, title: e.target.value})} />
                     <textarea aria-label="Desc" required placeholder="Description" className="w-full border p-3 rounded-lg h-24" onChange={e => setNewCourse({...newCourse, description: e.target.value})} />
@@ -219,13 +247,10 @@ export default function TeacherDashboard() {
                       <input aria-label="Start" required type="date" className="border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, startDate: e.target.value})} />
                       <input aria-label="End" required type="date" className="border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, endDate: e.target.value})} />
                     </div>
-                    
-                    {/* GOOGLE CLASSROOM LINK */}
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                       <label className="block text-xs font-bold text-blue-800 mb-1">GOOGLE CLASSROOM LINK (Optional)</label>
                       <input aria-label="Link" placeholder="e.g. https://classroom.google.com/c/..." className="w-full border p-3 rounded-lg bg-white" onChange={e => setNewCourse({...newCourse, classroomUrl: e.target.value})} />
                     </div>
-
                     <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Publish Course</button>
                   </form>
                 )}
@@ -241,8 +266,16 @@ export default function TeacherDashboard() {
               </div>
             )}
 
+            {/* TAB 3: MESSAGES (CHAT) */}
+            {activeTab === 'messages' && (
+              <div className="bg-white rounded-2xl shadow-sm border p-1 animate-in fade-in h-[600px]">
+                <ChatWindow myId={teacher.id} myType="teacher" />
+              </div>
+            )}
+
+            {/* TAB 4: BOOST PROFILE */}
             {activeTab === 'boost' && (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-in fade-in">
                 <div className="grid md:grid-cols-3 gap-4">
                   {/* BRONZE */}
                   <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-orange-800 font-bold">Bronze</h4><p className="text-2xl font-bold mb-4">₦10k</p>

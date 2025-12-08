@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // Ensure this matches your cloud provider (Render/Railway)
+  provider = "postgresql" // Ensure this matches your cloud provider
   url      = env("DATABASE_URL")
 }
 
@@ -17,7 +17,6 @@ model Teacher {
   location     String
   hourlyRate   Int
   isVerified   Boolean   @default(false)
-  reviews      Review[]
   
   // Onboarding & Ranking
   hasOnboarded Boolean   @default(false)
@@ -25,12 +24,15 @@ model Teacher {
   sales        Int       @default(0)
   
   // Ads & Plans
-  plan         String    @default("free") // "bronze", "silver", "gold"
+  plan         String    @default("free")
   planExpires  DateTime?
   ranking      Int       @default(0)
 
+  // Relations
   bookings     Booking[]
   courses      Course[]
+  reviews      Review[]
+  conversations Conversation[] // <--- ADDED THIS
 }
 
 model Student {
@@ -39,26 +41,26 @@ model Student {
   email     String    @unique
   password  String
   image     String?
+  
+  // Relations
   bookings  Booking[]
-   reviews   Review[]
+  reviews   Review[]
+  conversations Conversation[] // <--- ADDED THIS
 }
 
 model Course {
-  id           String    @id @default(uuid())
-  title        String
-  description  String
-  price        Int
-  startDate    DateTime
-  endDate      DateTime
-  schedule     String    
-  
-  // --- NEW FIELD ---
-  classroomUrl String?   // Stores the Google Classroom Invite Link
-  
-  createdAt    DateTime  @default(now())
-  teacherId    String
-  teacher      Teacher   @relation(fields: [teacherId], references: [id])
-  bookings     Booking[]
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  price       Int
+  startDate   DateTime
+  endDate     DateTime
+  schedule    String    
+  createdAt   DateTime  @default(now())
+
+  teacherId   String
+  teacher     Teacher   @relation(fields: [teacherId], references: [id])
+  bookings    Booking[]
 }
 
 model Booking {
@@ -68,11 +70,9 @@ model Booking {
   status      String   @default("success") 
   createdAt   DateTime @default(now())
   
-  // Booking Type
-  type        String   @default("paid") // "paid", "trial", "course"
+  type        String   @default("paid")
   scheduledAt DateTime? 
 
-  // Relations
   teacherId   String
   teacher     Teacher  @relation(fields: [teacherId], references: [id])
   studentId   String
@@ -82,7 +82,49 @@ model Booking {
   course      Course?  @relation(fields: [courseId], references: [id])
 }
 
-// Admin Stuff
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int      
+  comment   String
+  createdAt DateTime @default(now())
+
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+}
+
+// --- CHAT SYSTEM ---
+model Conversation {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  teacherId String
+  teacher   Teacher   @relation(fields: [teacherId], references: [id])
+  
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id])
+
+  messages  Message[]
+
+  @@unique([teacherId, studentId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  content        String
+  senderId       String       
+  senderType     String       // "teacher" or "student"
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+}
+
+// --- ADMIN SYSTEM ---
 model Page {
   id        String   @id @default(uuid())
   slug      String   @unique 
@@ -98,52 +140,10 @@ model Package {
   description String
   features    String 
 }
+
 model FAQ {
   id        String   @id @default(uuid())
   question  String
   answer    String
   createdAt DateTime @default(now())
-}
-
-// 3. Add Review Model (NEW)
-model Review {
-  id        String   @id @default(uuid())
-  rating    Int      // 1 to 5
-  comment   String
-  createdAt DateTime @default(now())
-
-  teacherId String
-  teacher   Teacher  @relation(fields: [teacherId], references: [id])
-
-  studentId String
-  student   Student  @relation(fields: [studentId], references: [id])
-}
-
-model Conversation {
-  id        String    @id @default(uuid())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  teacherId String
-  teacher   Teacher   @relation(fields: [teacherId], references: [id])
-  
-  studentId String
-  student   Student   @relation(fields: [studentId], references: [id])
-
-  messages  Message[]
-
-  // Ensure unique conversation per pair
-  @@unique([teacherId, studentId])
-}
-
-model Message {
-  id             String       @id @default(uuid())
-  content        String
-  senderId       String       // ID of who sent it
-  senderType     String       // "teacher" or "student"
-  isRead         Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
 }
