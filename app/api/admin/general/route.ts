@@ -1,59 +1,48 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-// 🛑 THIS LINE FIXES THE INVISIBLE ITEMS PROBLEM
-export const dynamic = 'force-dynamic'; 
+export const dynamic = 'force-dynamic'; // Prevent caching
 
 const prisma = new PrismaClient();
 
-// GET: Fetch Everything (Always Fresh)
+// GET: Fetch Everything (Now includes Bookings/Transactions)
 export async function GET() {
   try {
-    // 1. Fetch Packages
-    const packages = await prisma.package.findMany({
-      orderBy: { price: 'asc' }
-    });
-
-    // 2. Fetch FAQs
-    const faqs = await prisma.fAQ.findMany({
-      orderBy: { createdAt: 'asc' }
-    });
-
-    // 3. Fetch Teachers & Students
-    const teachers = await prisma.teacher.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { bookings: true }
-    });
-    const students = await prisma.student.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
+    const teachers = await prisma.teacher.findMany({ orderBy: { createdAt: 'desc' }, include: { bookings: true } });
+    const students = await prisma.student.findMany({ orderBy: { createdAt: 'desc' } });
     const pages = await prisma.page.findMany();
-
-    // 4. Calculate Revenue
-    let totalRevenue = 0;
-    teachers.forEach(t => {
-      t.bookings.forEach(b => {
-        if(b.type !== 'trial') totalRevenue += b.amount;
-      });
+    const packages = await prisma.package.findMany({ orderBy: { price: 'asc' } });
+    const faqs = await prisma.fAQ.findMany({ orderBy: { createdAt: 'asc' } });
+    
+    // --- NEW: Fetch All Transactions (Bookings) ---
+    const bookings = await prisma.booking.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        teacher: { select: { name: true, email: true } },
+        student: { select: { name: true, email: true } },
+        course: { select: { title: true } }
+      }
     });
 
-    // 5. Return Data
+    // Calculate Revenue
+    let totalRevenue = 0;
+    bookings.forEach(b => {
+      if(b.type !== 'trial') totalRevenue += b.amount;
+    });
+
     return NextResponse.json({ 
       teachers: teachers || [], 
       students: students || [], 
       pages: pages || [], 
       packages: packages || [], 
       faqs: faqs || [],
+      bookings: bookings || [], // Return the transactions
       totalRevenue 
     });
 
   } catch (error) {
     console.error("Admin API Error:", error);
-    // Return empty arrays instead of crashing so the dashboard still loads
-    return NextResponse.json({ 
-      teachers: [], students: [], pages: [], packages: [], faqs: [], totalRevenue: 0, 
-      error: "Failed to load data" 
-    });
+    return NextResponse.json({ error: "Failed to load data" }, { status: 500 });
   }
 }
 
@@ -63,12 +52,10 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { action, id, data } = body;
 
-    // Verify Teacher
     if (action === 'verify_teacher') {
       await prisma.teacher.update({ where: { id }, data: { isVerified: data.isVerified } });
     }
 
-    // Update/Create Package
     if (action === 'update_package') {
       if (id && id.length > 5) { 
         await prisma.package.update({
@@ -82,7 +69,6 @@ export async function PUT(req: Request) {
       }
     }
 
-    // Save Page
     if (action === 'save_page') {
       await prisma.page.upsert({
         where: { slug: data.slug },
@@ -91,23 +77,16 @@ export async function PUT(req: Request) {
       });
     }
 
-    // Update/Create FAQ
     if (action === 'update_faq') {
       if (id && id.length > 5) {
-        await prisma.fAQ.update({ 
-          where: { id }, 
-          data: { question: data.question, answer: data.answer } 
-        });
+        await prisma.fAQ.update({ where: { id }, data: { question: data.question, answer: data.answer } });
       } else {
-        await prisma.fAQ.create({ 
-          data: { question: data.question, answer: data.answer } 
-        });
+        await prisma.fAQ.create({ data: { question: data.question, answer: data.answer } });
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Put Error:", error);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });
   }
 }
