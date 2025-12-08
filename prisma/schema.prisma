@@ -33,6 +33,8 @@ model Teacher {
   courses      Course[]
   reviews      Review[]
   conversations Conversation[] // <--- ADDED THIS
+  resetToken       String?
+  resetTokenExpiry DateTime?
 }
 
 model Student {
@@ -46,6 +48,8 @@ model Student {
   bookings  Booking[]
   reviews   Review[]
   conversations Conversation[] // <--- ADDED THIS
+  resetToken       String?
+  resetTokenExpiry DateTime?
 }
 
 model Course {

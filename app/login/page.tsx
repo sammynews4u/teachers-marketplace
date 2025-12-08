@@ -45,6 +45,11 @@ export default function Login() {
               <input type="password" required className="w-full p-3 border rounded-lg"
                 onChange={e => setFormData({...formData, password: e.target.value})} />
             </div>
+            <div className="text-right mb-4">
+  <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+    Forgot Password?
+  </Link>
+</div>
             <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700">
               Login
             </button>
