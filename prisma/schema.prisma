@@ -17,6 +17,7 @@ model Teacher {
   location     String
   hourlyRate   Int
   isVerified   Boolean   @default(false)
+  reviews      Review[]
   
   // Onboarding & Ranking
   hasOnboarded Boolean   @default(false)
@@ -39,6 +40,7 @@ model Student {
   password  String
   image     String?
   bookings  Booking[]
+   reviews   Review[]
 }
 
 model Course {
@@ -101,4 +103,18 @@ model FAQ {
   question  String
   answer    String
   createdAt DateTime @default(now())
+}
+
+// 3. Add Review Model (NEW)
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int      // 1 to 5
+  comment   String
+  createdAt DateTime @default(now())
+
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
 }
