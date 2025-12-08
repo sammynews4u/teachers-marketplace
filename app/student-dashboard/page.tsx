@@ -1,6 +1,7 @@
 "use client";
 
 import Navbar from '../../components/Navbar';
+import ChatWindow from '../../components/ChatWindow'; // Ensure this component exists
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -12,10 +13,11 @@ export default function StudentDashboard() {
   const [student, setStudent] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [totalSpent, setTotalSpent] = useState(0);
+  const [activeTab, setActiveTab] = useState('instructors'); // 'instructors' or 'messages'
 
   // REVIEW STATE
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewTarget, setReviewTarget] = useState<any>(null); // Teacher ID
+  const [reviewTarget, setReviewTarget] = useState<any>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
@@ -111,6 +113,8 @@ export default function StudentDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* LEFT: Profile & Stats */}
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-blue-600 to-cyan-500"></div>
@@ -126,35 +130,49 @@ export default function StudentDashboard() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Zap className="text-yellow-500" size={20} /> Your Progress</h3><div className="space-y-4"><div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"><div className="flex items-center gap-3"><div className="bg-blue-100 text-blue-600 p-2 rounded-lg"><BookOpen size={18} /></div><span className="text-sm font-medium">Teachers Hired</span></div><span className="font-bold text-lg">{student.bookings?.length || 0}</span></div><div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"><div className="flex items-center gap-3"><div className="bg-green-100 text-green-600 p-2 rounded-lg"><Award size={18} /></div><span className="text-sm font-medium">Invested</span></div><span className="font-bold text-lg">₦{totalSpent.toLocaleString()}</span></div></div></div>
           </div>
 
+          {/* RIGHT: Content */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-gray-900 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden"><div className="relative z-10"><h3 className="text-2xl font-bold mb-2">Ready to learn?</h3><p className="text-gray-400 mb-6">You have access to expert teachers. Start a class now.</p><button onClick={() => router.push('/teachers')} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-blue-600/30">Find More Teachers</button></div><div className="absolute top-0 right-0 -mr-10 -mt-10 w-64 h-64 bg-gray-800 rounded-full opacity-50"></div></div>
-
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">My Instructors</h3>
-              {(!student.bookings || student.bookings.length === 0) ? (
-                <div className="bg-white p-10 text-center rounded-2xl border border-dashed border-gray-300"><p className="text-gray-500">You haven't hired anyone yet.</p></div>
-              ) : (
-                <div className="space-y-4">
-                  {student.bookings.map((booking: any) => (
-                    <div key={booking.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col sm:flex-row items-center gap-5">
-                      <img src={booking.teacher.image} className="w-16 h-16 rounded-full object-cover border-2 border-gray-100" />
-                      <div className="flex-1 text-center sm:text-left"><h4 className="text-lg font-bold text-gray-900">{booking.teacher.name}</h4><p className="text-blue-600 text-sm font-medium">{booking.teacher.subject}</p><p className="text-xs text-gray-400 mt-1">Hired on {new Date(booking.createdAt).toLocaleDateString()}</p></div>
-                      <div className="flex gap-2">
-                        <button className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl font-bold hover:bg-green-100 transition"><Video size={18} /> Join Class</button>
-                        
-                        {/* REVIEW BUTTON */}
-                        <button 
-                          onClick={() => { setReviewTarget(booking.teacher.id); setShowReviewModal(true); }} 
-                          className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-xl font-bold hover:bg-yellow-100 transition"
-                        >
-                          <Star size={18} /> Rate
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            
+            {/* TABS */}
+            <div className="flex gap-4 mb-4 bg-gray-200 p-1 rounded-2xl w-fit">
+              <button onClick={() => setActiveTab('instructors')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'instructors' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>My Instructors</button>
+              <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Messages</button>
             </div>
+
+            {/* TAB 1: INSTRUCTORS */}
+            {activeTab === 'instructors' && (
+              <>
+                <div className="bg-gray-900 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden"><div className="relative z-10"><h3 className="text-2xl font-bold mb-2">Ready to learn?</h3><p className="text-gray-400 mb-6">You have access to expert teachers. Start a class now.</p><button onClick={() => router.push('/teachers')} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-blue-600/30">Find More Teachers</button></div><div className="absolute top-0 right-0 -mr-10 -mt-10 w-64 h-64 bg-gray-800 rounded-full opacity-50"></div></div>
+
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">My Instructors</h3>
+                  {(!student.bookings || student.bookings.length === 0) ? (
+                    <div className="bg-white p-10 text-center rounded-2xl border border-dashed border-gray-300"><p className="text-gray-500">You haven't hired anyone yet.</p></div>
+                  ) : (
+                    <div className="space-y-4">
+                      {student.bookings.map((booking: any) => (
+                        <div key={booking.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col sm:flex-row items-center gap-5">
+                          <img src={booking.teacher.image} className="w-16 h-16 rounded-full object-cover border-2 border-gray-100" />
+                          <div className="flex-1 text-center sm:text-left"><h4 className="text-lg font-bold text-gray-900">{booking.teacher.name}</h4><p className="text-blue-600 text-sm font-medium">{booking.teacher.subject}</p><p className="text-xs text-gray-400 mt-1">Hired on {new Date(booking.createdAt).toLocaleDateString()}</p></div>
+                          <div className="flex gap-2">
+                            <button className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl font-bold hover:bg-green-100 transition"><Video size={18} /> Join Class</button>
+                            <button onClick={() => { setReviewTarget(booking.teacher.id); setShowReviewModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-xl font-bold hover:bg-yellow-100 transition"><Star size={18} /> Rate</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* TAB 2: MESSAGES (CHAT) */}
+            {activeTab === 'messages' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1">
+                <ChatWindow myId={student.id} myType="student" />
+              </div>
+            )}
+
           </div>
         </div>
       </div>

@@ -118,3 +118,32 @@ model Review {
   studentId String
   student   Student  @relation(fields: [studentId], references: [id])
 }
+
+model Conversation {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  teacherId String
+  teacher   Teacher   @relation(fields: [teacherId], references: [id])
+  
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id])
+
+  messages  Message[]
+
+  // Ensure unique conversation per pair
+  @@unique([teacherId, studentId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  content        String
+  senderId       String       // ID of who sent it
+  senderType     String       // "teacher" or "student"
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+}

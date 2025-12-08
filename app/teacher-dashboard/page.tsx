@@ -1,6 +1,7 @@
 "use client";
 
 import Navbar from '../../components/Navbar';
+import ChatWindow from '../../components/ChatWindow';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
