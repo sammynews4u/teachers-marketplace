@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-export const dynamic = 'force-dynamic'; // Prevent caching
+export const dynamic = 'force-dynamic'; 
 
 const prisma = new PrismaClient();
 
-// GET: Fetch Everything (Now includes Bookings/Transactions)
+// GET: Fetch Everything + Settings
 export async function GET() {
   try {
     const teachers = await prisma.teacher.findMany({ orderBy: { createdAt: 'desc' }, include: { bookings: true } });
@@ -14,7 +14,7 @@ export async function GET() {
     const packages = await prisma.package.findMany({ orderBy: { price: 'asc' } });
     const faqs = await prisma.fAQ.findMany({ orderBy: { createdAt: 'asc' } });
     
-    // --- NEW: Fetch All Transactions (Bookings) ---
+    // Fetch Transactions
     const bookings = await prisma.booking.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -24,10 +24,24 @@ export async function GET() {
       }
     });
 
+    // Fetch Settings (Create default if not exists)
+    let settings = await prisma.systemSettings.findFirst();
+    if (!settings) {
+      settings = await prisma.systemSettings.create({
+        data: { commissionRate: 10, supportEmail: "support@platform.com" }
+      });
+    }
+
     // Calculate Revenue
     let totalRevenue = 0;
+    let platformProfit = 0;
+    
     bookings.forEach(b => {
-      if(b.type !== 'trial') totalRevenue += b.amount;
+      if(b.type !== 'trial' && !b.isRefunded) {
+        totalRevenue += b.amount;
+        // Calculate profit based on commission
+        platformProfit += (b.amount * (settings?.commissionRate || 10)) / 100;
+      }
     });
 
     return NextResponse.json({ 
@@ -36,53 +50,72 @@ export async function GET() {
       pages: pages || [], 
       packages: packages || [], 
       faqs: faqs || [],
-      bookings: bookings || [], // Return the transactions
-      totalRevenue 
+      bookings: bookings || [],
+      settings,
+      totalRevenue,
+      platformProfit
     });
 
   } catch (error) {
-    console.error("Admin API Error:", error);
     return NextResponse.json({ error: "Failed to load data" }, { status: 500 });
   }
 }
 
-// PUT: Handle Updates
+// PUT: Handle All Admin Actions
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
     const { action, id, data } = body;
 
+    // 1. Verify Teacher
     if (action === 'verify_teacher') {
       await prisma.teacher.update({ where: { id }, data: { isVerified: data.isVerified } });
     }
 
+    // 2. Suspend/Unsuspend User
+    if (action === 'toggle_suspend') {
+      if (data.type === 'teacher') {
+        await prisma.teacher.update({ where: { id }, data: { isSuspended: data.status } });
+      } else {
+        await prisma.student.update({ where: { id }, data: { isSuspended: data.status } });
+      }
+    }
+
+    // 3. Update Settings
+    if (action === 'update_settings') {
+      // Update the first settings record found
+      const first = await prisma.systemSettings.findFirst();
+      if(first) {
+        await prisma.systemSettings.update({
+          where: { id: first.id },
+          data: { 
+            commissionRate: parseInt(data.commissionRate),
+            supportEmail: data.supportEmail,
+            maintenanceMode: data.maintenanceMode
+          }
+        });
+      }
+    }
+
+    // 4. Refund Booking
+    if (action === 'refund_booking') {
+      await prisma.booking.update({ where: { id }, data: { isRefunded: true, status: 'refunded' } });
+    }
+
+    // 5. Update Packages/Pages/FAQs (Standard)
     if (action === 'update_package') {
       if (id && id.length > 5) { 
-        await prisma.package.update({
-          where: { id },
-          data: { name: data.name, price: parseInt(data.price), description: data.description, features: data.features }
-        });
+        await prisma.package.update({ where: { id }, data: { ...data, price: parseInt(data.price) } });
       } else {
-        await prisma.package.create({
-          data: { name: data.name, price: parseInt(data.price), description: data.description, features: data.features }
-        });
+        await prisma.package.create({ data: { ...data, price: parseInt(data.price) } });
       }
     }
-
     if (action === 'save_page') {
-      await prisma.page.upsert({
-        where: { slug: data.slug },
-        update: { title: data.title, content: data.content },
-        create: { slug: data.slug, title: data.title, content: data.content }
-      });
+      await prisma.page.upsert({ where: { slug: data.slug }, update: data, create: data });
     }
-
     if (action === 'update_faq') {
-      if (id && id.length > 5) {
-        await prisma.fAQ.update({ where: { id }, data: { question: data.question, answer: data.answer } });
-      } else {
-        await prisma.fAQ.create({ data: { question: data.question, answer: data.answer } });
-      }
+      if (id && id.length > 5) await prisma.fAQ.update({ where: { id }, data });
+      else await prisma.fAQ.create({ data });
     }
 
     return NextResponse.json({ success: true });
