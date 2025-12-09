@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { sendEmail } from '@/lib/email'; 
 
 const prisma = new PrismaClient();
 
@@ -9,23 +8,18 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, email, password, subject, location, hourlyRate, image } = body;
 
-    // Validate
     if (!name || !email || !password || !subject || !location || !hourlyRate) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    // Check if email already exists
     const existing = await prisma.teacher.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
-    }
+    if (existing) return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
 
-    // Create Teacher (ONCE)
     const teacher = await prisma.teacher.create({
       data: {
         name,
         email,
-        password, 
+        password,
         subject,
         location,
         hourlyRate: parseInt(hourlyRate),
@@ -34,16 +28,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // Send Welcome Email
-    await sendEmail(
-      email,
-      "Welcome to TeachersB!",
-      `<h1>Welcome, ${name}!</h1>
-       <p>Thank you for joining TeachersB as a tutor.</p>
-       <p>Please login to your dashboard to complete your onboarding and start getting students.</p>
-       <br/>
-       <a href="https://teachers-marketplace.vercel.app/login">Login to Dashboard</a>`
-    );
+    // Send Welcome Email (Optional - requires your email helper)
+    // await sendEmail(email, "Welcome", "...");
 
     return NextResponse.json({ success: true, teacher });
   } catch (error) {
@@ -51,18 +37,43 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+// GET: Fetch with Filters
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const subject = searchParams.get('subject');
+    const location = searchParams.get('location');
+    const maxPrice = searchParams.get('maxPrice');
+
+    // Build the Filter Query
+    const where: any = {};
+
+    if (subject && subject !== 'all') {
+      // "contains" means searching "Math" finds "Mathematics"
+      // mode: 'insensitive' means "math" finds "Math"
+      where.subject = { contains: subject, mode: 'insensitive' };
+    }
+
+    if (location) {
+      where.location = { contains: location, mode: 'insensitive' };
+    }
+
+    if (maxPrice) {
+      where.hourlyRate = { lte: parseInt(maxPrice) }; // lte = Less Than or Equal
+    }
+
     const teachers = await prisma.teacher.findMany({
+      where,
       orderBy: [
-        { ranking: 'desc' },    // 1. Gold/Silver/Bronze come first
-        { isVerified: 'desc' }, // 2. Then Verified teachers
-        { sales: 'desc' }       // 3. Then Top Sellers
+        { ranking: 'desc' },    // Gold/Silver first
+        { isVerified: 'desc' }, // Verified second
+        { sales: 'desc' }       // High sales third
       ],
       include: {
         bookings: true
       }
     });
+
     return NextResponse.json(teachers);
   } catch (error) {
     return NextResponse.json({ error: 'Error fetching teachers' }, { status: 500 });
