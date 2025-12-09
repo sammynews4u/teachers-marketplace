@@ -1,25 +1,30 @@
 "use client";
 
 import { CldUploadWidget } from 'next-cloudinary';
-import { Camera, Upload } from 'lucide-react';
+import { Camera } from 'lucide-react';
 
 interface UploadProps {
   onUpload: (url: string) => void;
 }
 
 export default function UploadButton({ onUpload }: UploadProps) {
+  // SAFETY CHECK: Use the env variable, OR use a fallback string "teachers-app"
+  // This prevents the build from crashing if Vercel can't find the key immediately.
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_PRESET || "teachers-app";
+
   return (
     <CldUploadWidget 
-      uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_PRESET}
+      uploadPreset={uploadPreset}
       onSuccess={(result: any) => {
-        // Cloudinary returns the secure_url
-        onUpload(result.info.secure_url);
+        if (result.info && result.info.secure_url) {
+            onUpload(result.info.secure_url);
+        }
       }}
     >
       {({ open }) => {
         return (
           <button 
-            type="button" // Important: prevents form submission
+            type="button" 
             onClick={() => open()}
             className="flex flex-col items-center justify-center w-32 h-32 bg-gray-100 rounded-full border-2 border-dashed border-gray-300 hover:bg-gray-200 transition"
           >
