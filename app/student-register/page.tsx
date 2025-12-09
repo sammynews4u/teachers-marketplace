@@ -2,7 +2,7 @@
 import Navbar from '../../components/Navbar';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { trackConversion } from '../../lib/analytics';
+import { trackConversion } from '@/lib/analytics';
 import Link from 'next/link';
 
 export default function StudentRegister() {

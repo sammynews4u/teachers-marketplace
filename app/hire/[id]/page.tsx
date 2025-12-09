@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { PaystackButton } from 'react-paystack';
 import { Calendar, CheckCircle2, Video, BookOpen, Clock } from 'lucide-react';
-import { trackConversion } from '../../lib/analytics'; // <--- NEW: Import Analytics
+import { trackConversion } from '@/lib/analytics';
 
 export default function HirePage() {
   const params = useParams();

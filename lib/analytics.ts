@@ -23,6 +23,9 @@ export const tiktokEvent = (name: string, options = {}) => {
 
 // --- THE MASTER TRIGGER ---
 export const trackConversion = (eventName: 'Lead' | 'Purchase' | 'AddToCart' | 'CompleteRegistration', value?: number) => {
+  // Safe check for window
+  if (typeof window === "undefined") return;
+
   console.log(`🔥 Firing Pixel Event: ${eventName} | Value: ${value || 0}`);
 
   // Map to platform-specific names

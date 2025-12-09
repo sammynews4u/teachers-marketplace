@@ -3,7 +3,7 @@
 import Navbar from '../../components/Navbar';
 import UploadButton from '../../components/UploadButton'; // <--- NEW IMPORT
 import { useState } from 'react';
-import { trackConversion } from '../../lib/analytics';
+import { trackConversion } from '@/lib/analytics';
 import { useRouter } from 'next/navigation';
 
 export default function BecomeTeacher() {
