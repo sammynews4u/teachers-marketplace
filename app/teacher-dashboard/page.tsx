@@ -1,7 +1,8 @@
 "use client";
 
 import Navbar from '../../components/Navbar';
-import ChatWindow from '../../components/ChatWindow'; // Import Chat Component
+import ChatWindow from '../../components/ChatWindow'; 
+import UploadButton from '../../components/UploadButton'; // <--- Image Upload
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -11,11 +12,7 @@ import {
   CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone 
 } from 'lucide-react';
 
-// Dynamic Import for Paystack (Prevents SSR errors)
-const PaystackButton = dynamic(
-  () => import('react-paystack').then((mod) => mod.PaystackButton),
-  { ssr: false }
-);
+const PaystackButton = dynamic(() => import('react-paystack').then((mod) => mod.PaystackButton), { ssr: false });
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -24,7 +21,7 @@ export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<any>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState('classroom'); // 'classroom', 'courses', 'boost', 'messages'
+  const [activeTab, setActiveTab] = useState('classroom'); 
   const [earnings, setEarnings] = useState(0);
 
   // ONBOARDING
@@ -37,7 +34,6 @@ export default function TeacherDashboard() {
   });
   const [showCourseForm, setShowCourseForm] = useState(false);
 
-  // PAYSTACK KEY
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   useEffect(() => {
@@ -45,7 +41,7 @@ export default function TeacherDashboard() {
     const id = localStorage.getItem('teacherId');
     if (!id) { router.push('/login'); return; }
 
-    // 1. Fetch Teacher Data
+    // Fetch Teacher
     fetch('/api/teacher-dashboard', { method: 'POST', body: JSON.stringify({ teacherId: id }) })
     .then(res => res.json())
     .then(data => {
@@ -57,7 +53,7 @@ export default function TeacherDashboard() {
       }
     });
 
-    // 2. Fetch Courses
+    // Fetch Courses
     fetch(`/api/courses?teacherId=${id}`).then(res => res.json()).then(data => setCourses(data));
   }, []);
 
@@ -174,6 +170,10 @@ export default function TeacherDashboard() {
                <img src={teacher.image} className="relative w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4 mt-8"/>
                {isEditing ? (
                   <div className="space-y-3">
+                    {/* IMAGE UPLOAD BUTTON */}
+                    <div className="flex justify-center">
+                        <UploadButton onUpload={(url) => setTeacher({...teacher, image: url})} />
+                    </div>
                     <input aria-label="Name" value={teacher.name} onChange={e => setTeacher({...teacher, name: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input aria-label="Subject" value={teacher.subject} onChange={e => setTeacher({...teacher, subject: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input aria-label="Rate" type="number" value={teacher.hourlyRate} onChange={e => setTeacher({...teacher, hourlyRate: e.target.value})} className="border p-2 w-full rounded text-sm"/>

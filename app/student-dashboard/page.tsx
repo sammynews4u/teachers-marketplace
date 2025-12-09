@@ -1,7 +1,8 @@
 "use client";
 
 import Navbar from '../../components/Navbar';
-import ChatWindow from '../../components/ChatWindow'; // Ensure this component exists
+import ChatWindow from '../../components/ChatWindow'; // Import Chat
+import UploadButton from '../../components/UploadButton'; // Import Image Upload
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -13,11 +14,13 @@ export default function StudentDashboard() {
   const [student, setStudent] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [totalSpent, setTotalSpent] = useState(0);
+  
+  // TABS STATE
   const [activeTab, setActiveTab] = useState('instructors'); // 'instructors' or 'messages'
 
   // REVIEW STATE
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewTarget, setReviewTarget] = useState<any>(null);
+  const [reviewTarget, setReviewTarget] = useState<any>(null); // Teacher ID to rate
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
@@ -74,7 +77,7 @@ export default function StudentDashboard() {
     return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
   };
 
-  if (!student) return <div className="p-10 text-center text-blue-600 font-bold">Loading...</div>;
+  if (!student) return <div className="p-20 text-center text-blue-600 font-bold">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
@@ -120,14 +123,35 @@ export default function StudentDashboard() {
               <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-blue-600 to-cyan-500"></div>
               <div className="relative mt-10">
                 <img src={student.image || `https://api.dicebear.com/7.x/initials/svg?seed=${student.name}`} className="w-28 h-28 mx-auto mb-4 rounded-full object-cover border-4 border-white shadow-lg bg-white" />
+                
                 {isEditing ? (
-                  <div className="space-y-3 px-4"><input value={student.name} onChange={e => setStudent({...student, name: e.target.value})} className="w-full border p-2 rounded-lg text-center font-bold"/><button onClick={handleUpdate} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold w-full">Save</button></div>
+                  <div className="space-y-3 px-4">
+                    {/* NEW: IMAGE UPLOAD BUTTON */}
+                    <div className="flex justify-center">
+                        <UploadButton onUpload={(url) => setStudent({...student, image: url})} />
+                    </div>
+                    <input value={student.name} onChange={e => setStudent({...student, name: e.target.value})} className="w-full border p-2 rounded-lg text-center font-bold"/>
+                    <button onClick={handleUpdate} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold w-full">Save</button>
+                  </div>
                 ) : (
                   <><h2 className="text-xl font-bold">{student.name}</h2><p className="text-gray-500 text-sm mb-4">{student.email}</p><button onClick={() => setIsEditing(true)} className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-blue-600 transition"><Edit2 size={14} /> Edit Profile</button></>
                 )}
               </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Zap className="text-yellow-500" size={20} /> Your Progress</h3><div className="space-y-4"><div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"><div className="flex items-center gap-3"><div className="bg-blue-100 text-blue-600 p-2 rounded-lg"><BookOpen size={18} /></div><span className="text-sm font-medium">Teachers Hired</span></div><span className="font-bold text-lg">{student.bookings?.length || 0}</span></div><div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"><div className="flex items-center gap-3"><div className="bg-green-100 text-green-600 p-2 rounded-lg"><Award size={18} /></div><span className="text-sm font-medium">Invested</span></div><span className="font-bold text-lg">₦{totalSpent.toLocaleString()}</span></div></div></div>
+            
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Zap className="text-yellow-500" size={20} /> Your Progress</h3>
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <div className="flex items-center gap-3"><div className="bg-blue-100 text-blue-600 p-2 rounded-lg"><BookOpen size={18} /></div><span className="text-sm font-medium">Teachers Hired</span></div>
+                        <span className="font-bold text-lg">{student.bookings?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <div className="flex items-center gap-3"><div className="bg-green-100 text-green-600 p-2 rounded-lg"><Award size={18} /></div><span className="text-sm font-medium">Invested</span></div>
+                        <span className="font-bold text-lg">${totalSpent.toLocaleString()}</span>
+                    </div>
+                </div>
+            </div>
           </div>
 
           {/* RIGHT: Content */}
@@ -135,8 +159,8 @@ export default function StudentDashboard() {
             
             {/* TABS */}
             <div className="flex gap-4 mb-4 bg-gray-200 p-1 rounded-2xl w-fit">
-              <button onClick={() => setActiveTab('instructors')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'instructors' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>My Instructors</button>
-              <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Messages</button>
+              <button onClick={() => setActiveTab('instructors')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'instructors' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>My Instructors</button>
+              <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>Messages</button>
             </div>
 
             {/* TAB 1: INSTRUCTORS */}
@@ -166,9 +190,9 @@ export default function StudentDashboard() {
               </>
             )}
 
-            {/* TAB 2: MESSAGES (CHAT) */}
+            {/* TAB 2: MESSAGES */}
             {activeTab === 'messages' && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1 h-[600px]">
                 <ChatWindow myId={student.id} myType="student" />
               </div>
             )}
