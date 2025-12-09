@@ -183,12 +183,12 @@ export default function TeacherDashboard() {
                   <>
                     <h2 className="text-xl font-bold">{teacher.name}</h2>
                     <p className="text-blue-600 font-medium text-sm">{teacher.subject}</p>
-                    <p className="font-bold mt-2">₦{teacher.hourlyRate}/hr</p>
+                    <p className="font-bold mt-2">${teacher.hourlyRate}/hr</p>
                     <button onClick={() => setIsEditing(true)} className="text-sm text-gray-400 mt-4 underline">Edit Profile</button>
                   </>
                )}
             </div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border"><p className="text-gray-500 text-xs font-bold uppercase">Earnings</p><p className="text-2xl font-bold text-green-600">₦{earnings.toLocaleString()}</p></div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border"><p className="text-gray-500 text-xs font-bold uppercase">Earnings</p><p className="text-2xl font-bold text-green-600">${earnings.toLocaleString()}</p></div>
           </div>
 
           {/* RIGHT: CONTENT TABS */}
@@ -211,7 +211,7 @@ export default function TeacherDashboard() {
                      {teacher.bookings.map((b: any) => (
                        <div key={b.id} className="py-4 flex justify-between items-center">
                          <div className="flex gap-3 items-center">
-                           <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${b.student?.name}`} className="w-10 h-10 rounded-full bg-gray-100"/>
+                           <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${b.student?.name}`} className="w-10 h-10 rounded-full"/>
                            <div>
                              <p className="font-bold">{b.student?.name}</p>
                              <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -277,20 +277,20 @@ export default function TeacherDashboard() {
             {activeTab === 'boost' && (
               <div className="space-y-6 animate-in fade-in">
                 <div className="grid md:grid-cols-3 gap-4">
-                  {/* BRONZE */}
-                  <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-orange-800 font-bold">Bronze</h4><p className="text-2xl font-bold mb-4">₦10k</p>
+                  {/* BRONZE - $10 */}
+                  <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-orange-800 font-bold">Bronze</h4><p className="text-2xl font-bold mb-4">$10</p>
                     {/* @ts-ignore */}
-                    <PaystackButton email={teacher.email} amount={10000 * 100} publicKey={publicKey} text="Buy Bronze" onSuccess={(ref: any) => handlePackageSuccess(ref, 'bronze', 10000)} className="w-full bg-orange-100 text-orange-700 font-bold py-3 rounded-lg"/>
+                    <PaystackButton email={teacher.email} amount={10 * 100} currency="USD" publicKey={publicKey} text="Buy Bronze" onSuccess={(ref: any) => handlePackageSuccess(ref, 'bronze', 10)} className="w-full bg-orange-100 text-orange-700 font-bold py-3 rounded-lg"/>
                   </div>
-                  {/* SILVER */}
-                  <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-gray-600 font-bold">Silver</h4><p className="text-2xl font-bold mb-4">₦20k</p>
+                  {/* SILVER - $20 */}
+                  <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-gray-600 font-bold">Silver</h4><p className="text-2xl font-bold mb-4">$20</p>
                     {/* @ts-ignore */}
-                    <PaystackButton email={teacher.email} amount={20000 * 100} publicKey={publicKey} text="Buy Silver" onSuccess={(ref: any) => handlePackageSuccess(ref, 'silver', 20000)} className="w-full bg-gray-700 text-white font-bold py-3 rounded-lg"/>
+                    <PaystackButton email={teacher.email} amount={20 * 100} currency="USD" publicKey={publicKey} text="Buy Silver" onSuccess={(ref: any) => handlePackageSuccess(ref, 'silver', 20)} className="w-full bg-gray-700 text-white font-bold py-3 rounded-lg"/>
                   </div>
-                  {/* GOLD */}
-                  <div className="bg-white border-2 border-yellow-400 rounded-2xl p-6 hover:shadow-lg relative"><div className="absolute top-0 right-0 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-bl">BEST</div><h4 className="text-yellow-600 font-bold">Gold</h4><p className="text-2xl font-bold mb-4">₦30k</p>
+                  {/* GOLD - $30 */}
+                  <div className="bg-white border-2 border-yellow-400 rounded-2xl p-6 hover:shadow-lg relative"><div className="absolute top-0 right-0 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-bl">BEST</div><h4 className="text-yellow-600 font-bold">Gold</h4><p className="text-2xl font-bold mb-4">$30</p>
                     {/* @ts-ignore */}
-                    <PaystackButton email={teacher.email} amount={30000 * 100} publicKey={publicKey} text="Buy Gold" onSuccess={(ref: any) => handlePackageSuccess(ref, 'gold', 30000)} className="w-full bg-yellow-500 text-white font-bold py-3 rounded-lg"/>
+                    <PaystackButton email={teacher.email} amount={30 * 100} currency="USD" publicKey={publicKey} text="Buy Gold" onSuccess={(ref: any) => handlePackageSuccess(ref, 'gold', 30)} className="w-full bg-yellow-500 text-white font-bold py-3 rounded-lg"/>
                   </div>
                 </div>
               </div>
