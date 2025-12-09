@@ -2,7 +2,7 @@
 import Navbar from '../../components/Navbar';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import Link from 'next/link'; // <--- THIS WAS MISSING
 
 export default function StudentLogin() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function StudentLogin() {
     
     if (res.ok) {
       localStorage.setItem('studentId', data.studentId);
-      router.push('/student-dashboard'); // Send them to find teachers
+      router.push('/student-dashboard'); 
     } else {
       alert("Invalid credentials");
     }
@@ -41,11 +41,14 @@ export default function StudentLogin() {
               onChange={e => setForm({...form, email: e.target.value})} />
             <input type="password" placeholder="Password" required className="w-full p-3 border rounded-lg"
               onChange={e => setForm({...form, password: e.target.value})} />
-              <div className="text-right mb-4">
-  <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-    Forgot Password?
-  </Link>
-</div>
+            
+            {/* Forgot Password Link */}
+            <div className="text-right mb-4">
+              <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                Forgot Password?
+              </Link>
+            </div>
+
             <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Login</button>
           </form>
           <div className="mt-4 text-center text-sm">

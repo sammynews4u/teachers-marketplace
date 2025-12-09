@@ -3,6 +3,7 @@
 import Navbar from '../../components/Navbar';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link'; // <--- THIS WAS MISSING
 
 export default function Login() {
   const router = useRouter();
@@ -20,7 +21,6 @@ export default function Login() {
     const data = await res.json();
 
     if (res.ok) {
-      // Save the Teacher ID to the browser so we remember them
       localStorage.setItem('teacherId', data.teacherId);
       router.push('/teacher-dashboard');
     } else {
@@ -45,11 +45,14 @@ export default function Login() {
               <input type="password" required className="w-full p-3 border rounded-lg"
                 onChange={e => setFormData({...formData, password: e.target.value})} />
             </div>
+            
+            {/* Forgot Password Link */}
             <div className="text-right mb-4">
-  <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-    Forgot Password?
-  </Link>
-</div>
+              <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                Forgot Password?
+              </Link>
+            </div>
+
             <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700">
               Login
             </button>
