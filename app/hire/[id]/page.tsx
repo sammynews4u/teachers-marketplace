@@ -1,11 +1,13 @@
 "use client";
 
-import Navbar from '../../components/Navbar';
+// ✅ FIXED IMPORTS using '@/' alias
+import Navbar from '@/components/Navbar'; 
+import { trackConversion } from '@/lib/analytics'; 
+
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { PaystackButton } from 'react-paystack';
 import { Calendar, CheckCircle2, Video, BookOpen, Clock } from 'lucide-react';
-import { trackConversion } from '@/lib/analytics';
 
 export default function HirePage() {
   const params = useParams();
@@ -90,15 +92,12 @@ export default function HirePage() {
       if (res.ok) {
         // --- ANALYTICS TRACKING ---
         if (type === 'trial') {
-          // Track as a Lead (Form submission)
           trackConversion('Lead'); 
           alert("Trial Booked Successfully!");
         } else {
-          // Track as a Purchase (Revenue)
           trackConversion('Purchase', amount); 
           alert("Booking Successful!");
         }
-        // --------------------------
 
         router.push('/student-dashboard');
       } else {
