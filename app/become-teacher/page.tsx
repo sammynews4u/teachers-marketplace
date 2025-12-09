@@ -3,6 +3,7 @@
 import Navbar from '../../components/Navbar';
 import UploadButton from '../../components/UploadButton'; // <--- NEW IMPORT
 import { useState } from 'react';
+import { trackConversion } from '../../lib/analytics';
 import { useRouter } from 'next/navigation';
 
 export default function BecomeTeacher() {
@@ -37,6 +38,7 @@ export default function BecomeTeacher() {
     const data = await res.json();
 
     if (res.ok) {
+      trackConversion('Lead');
       alert("Registration Successful! Please Login.");
       router.push('/login');
     } else {

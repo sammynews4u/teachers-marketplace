@@ -5,6 +5,7 @@ import ChatWindow from '../../components/ChatWindow';
 import UploadButton from '../../components/UploadButton'; // <--- Image Upload
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { trackConversion } from '../../lib/analytics';
 import dynamic from 'next/dynamic';
 import { 
   Users, DollarSign, Calendar, Edit2, 
@@ -91,7 +92,7 @@ export default function TeacherDashboard() {
     const res = await fetch('/api/packages/purchase', {
       method: 'POST', body: JSON.stringify({ teacherId: teacher.id, plan, amount, reference: reference.reference }), headers: { 'Content-Type': 'application/json' }
     });
-    if (res.ok) { alert("Success!"); window.location.reload(); }
+    if (res.ok) trackConversion('Purchase', amount); { alert("Success!"); window.location.reload(); }
   };
 
   const getGreeting = () => {
