@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // 1. Import the Language Provider we just created
 import { LanguageProvider } from "../context/LanguageContext"; 
+import PixelScripts from '../components/PixelScripts';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({
       >
         {/* 2. Wrap the children with the Provider */}
         <LanguageProvider>
+           <PixelScripts />
           {children}
         </LanguageProvider>
       </body>
