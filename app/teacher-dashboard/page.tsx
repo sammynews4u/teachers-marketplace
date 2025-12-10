@@ -5,15 +5,14 @@ import ChatWindow from '../../components/ChatWindow';
 import UploadButton from '../../components/UploadButton'; 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { trackConversion } from '../../lib/analytics';
 import dynamic from 'next/dynamic';
-import { trackConversion } from '../../lib/analytics'; // Analytics
 import { 
   Users, DollarSign, Calendar, Edit2, 
   Clock, MessageSquare, Star, Video, Plus, Trash2, 
   CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone, Wallet
 } from 'lucide-react';
 
-// Dynamic Import for Paystack (Prevents SSR errors)
 const PaystackButton = dynamic(
   () => import('react-paystack').then((mod) => mod.PaystackButton),
   { ssr: false }
@@ -43,7 +42,6 @@ export default function TeacherDashboard() {
   });
   const [showCourseForm, setShowCourseForm] = useState(false);
 
-  // PAYSTACK KEY
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   useEffect(() => {
@@ -66,7 +64,7 @@ export default function TeacherDashboard() {
     // 2. Fetch Courses
     fetch(`/api/courses?teacherId=${id}`).then(res => res.json()).then(data => setCourses(data));
 
-    // 3. Fetch Wallet Data
+    // 3. Fetch Wallet
     fetch('/api/payouts', { method: 'POST', body: JSON.stringify({ teacherId: id }) })
       .then(res => res.json())
       .then(data => setWallet(data));
@@ -74,6 +72,26 @@ export default function TeacherDashboard() {
   }, []);
 
   // --- HANDLERS ---
+
+  // Initialize Chat
+  const handleStartChat = async (studentId: string) => {
+    if (!confirm("Start a conversation with this student?")) return;
+    
+    // Create the conversation by sending a system message
+    await fetch('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        senderId: teacher.id,
+        senderType: 'teacher',
+        receiverId: studentId,
+        content: "Hello! Welcome to my class."
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    // Switch to messages tab
+    setActiveTab('messages');
+  };
 
   const handleFinishOnboarding = async () => {
     if (!teacher) return;
@@ -107,7 +125,6 @@ export default function TeacherDashboard() {
     const res = await fetch('/api/packages/purchase', {
       method: 'POST', body: JSON.stringify({ teacherId: teacher.id, plan, amount, reference: reference.reference }), headers: { 'Content-Type': 'application/json' }
     });
-    
     if (res.ok) { 
       trackConversion('Purchase', amount);
       alert("Success!"); 
@@ -177,8 +194,6 @@ export default function TeacherDashboard() {
       )}
       
       <div className="pt-8 pb-12 px-4 max-w-7xl mx-auto">
-        
-        {/* HEADER */}
         <div className="flex justify-between items-end mb-10">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -215,12 +230,7 @@ export default function TeacherDashboard() {
                   </>
                )}
             </div>
-            
-            {/* WALLET MINI CARD */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border">
-               <p className="text-gray-500 text-xs font-bold uppercase">Wallet Balance</p>
-               <p className="text-3xl font-bold text-green-600">${wallet.availableBalance?.toLocaleString()}</p>
-            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border"><p className="text-gray-500 text-xs font-bold uppercase">Earnings</p><p className="text-2xl font-bold text-green-600">${earnings.toLocaleString()}</p></div>
           </div>
 
           {/* RIGHT: CONTENT TABS */}
@@ -253,7 +263,7 @@ export default function TeacherDashboard() {
                              </p>
                            </div>
                          </div>
-                         <button onClick={() => setActiveTab('messages')} aria-label="Chat" className="text-blue-600 bg-blue-50 p-2 rounded-lg hover:bg-blue-100 transition"><MessageSquare size={18}/></button>
+                         <button onClick={() => handleStartChat(b.student?.id)} aria-label="Chat" className="text-blue-600 bg-blue-50 p-2 rounded-lg hover:bg-blue-100 transition"><MessageSquare size={18}/></button>
                        </div>
                      ))}
                    </div>
@@ -314,9 +324,7 @@ export default function TeacherDashboard() {
                   <h2 className="text-5xl font-bold">${wallet.availableBalance?.toLocaleString()}</h2>
                   <p className="mt-4 text-sm opacity-80">Total Lifetime Earnings: ${wallet.totalEarnings?.toLocaleString()}</p>
                 </div>
-
                 <div className="grid md:grid-cols-2 gap-8">
-                  {/* Withdrawal Form */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg mb-4 text-gray-800">Request Withdrawal</h3>
                     <div className="space-y-4">
@@ -327,8 +335,6 @@ export default function TeacherDashboard() {
                       <button onClick={handleWithdraw} className="w-full bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-gray-800">Withdraw Funds</button>
                     </div>
                   </div>
-
-                  {/* History */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg mb-4 text-gray-800">Payout History</h3>
                     <div className="space-y-3 max-h-80 overflow-y-auto">

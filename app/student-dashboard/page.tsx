@@ -43,6 +43,26 @@ export default function StudentDashboard() {
     });
   }, []);
 
+  // --- HANDLERS ---
+  
+  // Initialize Chat
+  const handleStartChat = async (teacherId: string) => {
+    if (!confirm("Start a chat with this instructor?")) return;
+    
+    await fetch('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        senderId: student.id,
+        senderType: 'student',
+        receiverId: teacherId,
+        content: "Hi! I just joined your class."
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    setActiveTab('messages');
+  };
+
   const handleUpdate = async () => {
     await fetch('/api/student-dashboard', {
       method: 'PUT',
@@ -159,8 +179,8 @@ export default function StudentDashboard() {
             
             {/* TABS */}
             <div className="flex gap-4 mb-4 bg-gray-200 p-1 rounded-2xl w-fit">
-              <button onClick={() => setActiveTab('instructors')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'instructors' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>My Instructors</button>
-              <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>Messages</button>
+              <button onClick={() => setActiveTab('instructors')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'instructors' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>My Instructors</button>
+              <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Messages</button>
             </div>
 
             {/* TAB 1: INSTRUCTORS */}
@@ -179,7 +199,7 @@ export default function StudentDashboard() {
                           <img src={booking.teacher.image} className="w-16 h-16 rounded-full object-cover border-2 border-gray-100" />
                           <div className="flex-1 text-center sm:text-left"><h4 className="text-lg font-bold text-gray-900">{booking.teacher.name}</h4><p className="text-blue-600 text-sm font-medium">{booking.teacher.subject}</p><p className="text-xs text-gray-400 mt-1">Hired on {new Date(booking.createdAt).toLocaleDateString()}</p></div>
                           <div className="flex gap-2">
-                            <button className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl font-bold hover:bg-green-100 transition"><Video size={18} /> Join Class</button>
+                            <button onClick={() => handleStartChat(booking.teacher.id)} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl font-bold hover:bg-blue-100 transition"><MessageSquare size={18} /> Chat</button>
                             <button onClick={() => { setReviewTarget(booking.teacher.id); setShowReviewModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-xl font-bold hover:bg-yellow-100 transition"><Star size={18} /> Rate</button>
                           </div>
                         </div>
