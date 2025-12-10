@@ -3,9 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // Ensure this matches your cloud provider
+  provider = "postgresql" // Ensure this is postgresql for Vercel/Render
   url      = env("DATABASE_URL")
 }
+
+// --- USERS ---
 
 model Teacher {
   id           String    @id @default(uuid())
@@ -17,56 +19,69 @@ model Teacher {
   location     String
   hourlyRate   Int
   isVerified   Boolean   @default(false)
-  isSuspended  Boolean   @default(false)
   
-  // Onboarding & Ranking
+  // Onboarding & Stats
   hasOnboarded Boolean   @default(false)
   rating       Float     @default(5.0)
   sales        Int       @default(0)
   
   // Ads & Plans
-  plan         String    @default("free")
+  plan         String    @default("free") // "free", "bronze", "silver", "gold"
   planExpires  DateTime?
   ranking      Int       @default(0)
 
-  // Relations
-  bookings     Booking[]
-  courses      Course[]
-  reviews      Review[]
-  conversations Conversation[] // <--- ADDED THIS
-  resetToken       String?
+  // Wallet & Bank Details
+  bankName      String?
+  accountNumber String?
+  accountName   String?
+  
+  // Admin Control
+  isSuspended   Boolean   @default(false)
+  resetToken    String?
   resetTokenExpiry DateTime?
+
+  // Relations
+  bookings      Booking[]
+  courses       Course[]
+  reviews       Review[]
+  conversations Conversation[]
+  payouts       Payout[]
 }
 
 model Student {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String
-  image     String?
-  isSuspended  Boolean   @default(false)
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password      String
+  image         String?
   
-  // Relations
-  bookings  Booking[]
-  reviews   Review[]
-  conversations Conversation[] // <--- ADDED THIS
+  // Admin Control
+  isSuspended      Boolean   @default(false)
   resetToken       String?
   resetTokenExpiry DateTime?
+
+  // Relations
+  bookings      Booking[]
+  reviews       Review[]
+  conversations Conversation[]
 }
 
-model Course {
-  id          String    @id @default(uuid())
-  title       String
-  description String
-  price       Int
-  startDate   DateTime
-  endDate     DateTime
-  schedule    String    
-  createdAt   DateTime  @default(now())
+// --- COMMERCE & CONTENT ---
 
-  teacherId   String
-  teacher     Teacher   @relation(fields: [teacherId], references: [id])
-  bookings    Booking[]
+model Course {
+  id           String    @id @default(uuid())
+  title        String
+  description  String
+  price        Int
+  startDate    DateTime
+  endDate      DateTime
+  schedule     String    
+  classroomUrl String?   // Link to Google Classroom/Zoom
+  createdAt    DateTime  @default(now())
+
+  teacherId    String
+  teacher      Teacher   @relation(fields: [teacherId], references: [id])
+  bookings     Booking[]
 }
 
 model Booking {
@@ -75,10 +90,13 @@ model Booking {
   reference   String
   status      String   @default("success") 
   createdAt   DateTime @default(now())
-  isRefunded   Boolean   @default(false)
   
-  type        String   @default("paid")
+  // Type: "paid" (hourly), "trial" (free), "course" (cohort)
+  type        String   @default("paid") 
   scheduledAt DateTime? 
+  
+  // Admin Actions
+  isRefunded  Boolean   @default(false)
 
   teacherId   String
   teacher     Teacher  @relation(fields: [teacherId], references: [id])
@@ -89,6 +107,19 @@ model Booking {
   course      Course?  @relation(fields: [courseId], references: [id])
 }
 
+model Payout {
+  id            String   @id @default(uuid())
+  amount        Int
+  status        String   @default("pending") // pending, paid, rejected
+  bankDetails   String   
+  createdAt     DateTime @default(now())
+
+  teacherId     String
+  teacher       Teacher  @relation(fields: [teacherId], references: [id])
+}
+
+// --- SOCIAL ---
+
 model Review {
   id        String   @id @default(uuid())
   rating    Int      
@@ -97,12 +128,10 @@ model Review {
 
   teacherId String
   teacher   Teacher  @relation(fields: [teacherId], references: [id])
-
   studentId String
   student   Student  @relation(fields: [studentId], references: [id])
 }
 
-// --- CHAT SYSTEM ---
 model Conversation {
   id        String    @id @default(uuid())
   createdAt DateTime  @default(now())
@@ -110,7 +139,6 @@ model Conversation {
 
   teacherId String
   teacher   Teacher   @relation(fields: [teacherId], references: [id])
-  
   studentId String
   student   Student   @relation(fields: [studentId], references: [id])
 
@@ -132,6 +160,14 @@ model Message {
 }
 
 // --- ADMIN SYSTEM ---
+
+model SystemSettings {
+  id             String  @id @default(uuid())
+  commissionRate Int     @default(10)
+  supportEmail   String  @default("support@teachersb.com")
+  maintenanceMode Boolean @default(false)
+}
+
 model Page {
   id        String   @id @default(uuid())
   slug      String   @unique 
@@ -153,12 +189,4 @@ model FAQ {
   question  String
   answer    String
   createdAt DateTime @default(now())
-}
-
-// --- NEW MODEL: GLOBAL SETTINGS ---
-model SystemSettings {
-  id             String  @id @default(uuid())
-  commissionRate Int     @default(10) // Percentage (e.g. 10%)
-  supportEmail   String  @default("support@teachersb.com")
-  maintenanceMode Boolean @default(false) // If true, disable login
 }

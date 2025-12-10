@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   // DATA STATE
   const [data, setData] = useState<any>({ 
     teachers: [], students: [], pages: [], packages: [], faqs: [], bookings: [], 
-    courses: [], reviews: [],
+    courses: [], reviews: [], payouts: [],
     totalRevenue: 0, platformProfit: 0, settings: {} 
   });
   const [chartData, setChartData] = useState<any>({ revenue: [], growth: [], plans: [] });
@@ -66,7 +66,7 @@ export default function AdminDashboard() {
         teachers: json.teachers || [], students: json.students || [],
         pages: json.pages || [], packages: json.packages || [],
         faqs: json.faqs || [], bookings: json.bookings || [],
-        courses: json.courses || [], reviews: json.reviews || [],
+        courses: json.courses || [], reviews: json.reviews || [], payouts: json.payouts || [],
         totalRevenue: json.totalRevenue || 0,
         platformProfit: json.platformProfit || 0,
         settings: json.settings || {}
@@ -79,9 +79,10 @@ export default function AdminDashboard() {
   // ACTIONS
   const handleDelete = async (id: string, type: string) => { if(!confirm("Delete permanently?")) return; await fetch('/api/admin/general', { method: 'DELETE', body: JSON.stringify({ id, type }), headers: { 'Content-Type': 'application/json' }}); refreshData(); };
   const handleVerify = async (t: any) => { await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'verify_teacher', id: t.id, data: { isVerified: !t.isVerified } }), headers: { 'Content-Type': 'application/json' }}); refreshData(); };
-  const handleSuspend = async (id: string, type: string, currentStatus: boolean) => { if(!confirm(currentStatus ? "Activate User?" : "Suspend User? (They won't be able to login)")) return; await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'toggle_suspend', id, data: { type, status: !currentStatus } }) }); refreshData(); };
-  const handleRefund = async (id: string) => { if(!confirm("Mark as Refunded? This updates the database status.")) return; await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'refund_booking', id }) }); refreshData(); };
-  const handleSaveSettings = async () => { await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'update_settings', data: settingsForm }) }); alert("Settings Updated!"); refreshData(); };
+  const handleSuspend = async (id: string, type: string, currentStatus: boolean) => { if(!confirm(currentStatus ? "Activate?" : "Suspend?")) return; await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'toggle_suspend', id, data: { type, status: !currentStatus } }) }); refreshData(); };
+  const handleRefund = async (id: string) => { if(!confirm("Mark Refunded?")) return; await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'refund_booking', id }) }); refreshData(); };
+  const handleSaveSettings = async () => { await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'update_settings', data: settingsForm }) }); alert("Updated!"); refreshData(); };
+  const handleApprovePayout = async (id: string) => { if(!confirm("Mark as PAID? Ensure you have sent the money.")) return; await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'approve_payout', id }), headers: { 'Content-Type': 'application/json' }}); refreshData(); };
   
   const handleSavePackage = async (e: React.FormEvent) => { e.preventDefault(); await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'update_package', id: editingPackage.id, data: editingPackage }), headers: { 'Content-Type': 'application/json' }}); setShowPackageForm(false); setEditingPackage(null); refreshData(); };
   const handleSaveFAQ = async (e: React.FormEvent) => { e.preventDefault(); await fetch('/api/admin/general', { method: 'PUT', body: JSON.stringify({ action: 'update_faq', id: editingFAQ.id, data: editingFAQ }), headers: { 'Content-Type': 'application/json' }}); setShowFAQForm(false); setEditingFAQ(null); refreshData(); };
@@ -107,7 +108,7 @@ export default function AdminDashboard() {
 
         {/* TABS */}
         <div className="flex flex-wrap gap-2 mb-8 bg-white p-2 rounded-xl shadow-sm w-fit">
-          {['overview', 'transactions', 'teachers', 'students', 'courses', 'reviews', 'packages', 'faqs', 'pages', 'settings'].map(tab => (
+          {['overview', 'transactions', 'payouts', 'teachers', 'students', 'courses', 'reviews', 'packages', 'faqs', 'pages', 'settings'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg font-bold capitalize text-sm ${activeTab === tab ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>{tab}</button>
           ))}
         </div>
@@ -132,9 +133,25 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Date</th><th className="p-4">Payer</th><th className="p-4">Item</th><th className="p-4">Amount</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead><tbody>{data.bookings.map((b: any) => (<tr key={b.id} className="hover:bg-gray-50 border-b"><td className="p-4 text-sm text-gray-500">{new Date(b.createdAt).toLocaleDateString()}</td><td className="p-4 font-bold">{b.student?.name || b.teacher?.name}</td><td className="p-4">{b.type}</td><td className="p-4 font-bold text-gray-900">${b.amount}</td><td className="p-4">{b.isRefunded ? <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Refunded</span> : <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Success</span>}</td><td className="p-4">{!b.isRefunded && <button onClick={() => handleRefund(b.id)} className="text-xs bg-gray-200 hover:bg-red-100 hover:text-red-600 px-2 py-1 rounded flex items-center gap-1"><Undo2 size={12}/> Refund</button>}</td></tr>))}</tbody></table></div>
         )}
 
+        {/* PAYOUTS */}
+        {activeTab === 'payouts' && (
+          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Teacher</th><th className="p-4">Amount</th><th className="p-4">Bank Details</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead><tbody>
+            {data.payouts.map((p: any) => (
+              <tr key={p.id} className="hover:bg-gray-50 border-b">
+                <td className="p-4 font-bold">{p.teacher?.name}</td>
+                <td className="p-4 text-green-600 font-bold">${p.amount}</td>
+                <td className="p-4 text-xs text-gray-600 font-mono">{p.bankDetails}</td>
+                <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold uppercase ${p.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.status}</span></td>
+                <td className="p-4">{p.status === 'pending' && <button onClick={() => handleApprovePayout(p.id)} className="bg-gray-900 text-white px-3 py-1 rounded text-xs font-bold hover:bg-green-600">Mark Paid</button>}</td>
+              </tr>
+            ))}
+            {data.payouts.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">No requests yet.</td></tr>}
+          </tbody></table></div>
+        )}
+
         {/* TEACHERS */}
         {activeTab === 'teachers' && (
-          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Name</th><th className="p-4">Plan</th><th className="p-4">Status</th><th className="p-4">Verify</th><th className="p-4">Actions</th></tr></thead><tbody>{data.teachers.map((t: any) => (<tr key={t.id} className="hover:bg-gray-50 border-b"><td className="p-4 font-bold">{t.name}<br/><span className="text-xs text-gray-500 font-normal">{t.email}</span></td><td className="p-4">{t.plan || 'Free'}</td><td className="p-4">{t.isSuspended ? <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Suspended</span> : <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>}</td><td className="p-4 flex gap-2"><button onClick={()=>handleVerify(t)} className={`px-2 py-1 rounded border text-xs font-bold ${t.isVerified ? 'bg-blue-50 text-blue-600' : 'bg-gray-100'}`}>{t.isVerified ? 'Ok' : 'Verify'}</button><button onClick={()=>handleSuspend(t.id, 'teacher', t.isSuspended)} title="Suspend" className="text-orange-500 bg-orange-50 p-2 rounded"><Ban size={16}/></button><button onClick={()=>handleDelete(t.id, 'teacher')} className="text-red-500 bg-red-50 p-2 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
+          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Name</th><th className="p-4">Status</th><th className="p-4">Verify</th><th className="p-4">Actions</th></tr></thead><tbody>{data.teachers.map((t: any) => (<tr key={t.id} className="hover:bg-gray-50 border-b"><td className="p-4 font-bold">{t.name}<br/><span className="text-xs text-gray-500 font-normal">{t.email}</span></td><td className="p-4">{t.isSuspended ? <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Suspended</span> : <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>}</td><td className="p-4"><button onClick={()=>handleVerify(t)} className={`px-2 py-1 rounded border text-xs font-bold ${t.isVerified ? 'bg-blue-50 text-blue-600' : 'bg-gray-100'}`}>{t.isVerified ? 'Ok' : 'Verify'}</button></td><td className="p-4 flex gap-2"><button onClick={()=>handleSuspend(t.id, 'teacher', t.isSuspended)} title="Suspend" className="text-orange-500 bg-orange-50 p-2 rounded"><Ban size={16}/></button><button onClick={()=>handleDelete(t.id, 'teacher')} className="text-red-500 bg-red-50 p-2 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
         )}
         
         {/* STUDENTS */}

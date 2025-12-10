@@ -9,7 +9,7 @@ export async function GET() {
   console.log("Admin API: Starting fetch...");
 
   try {
-    // Run all queries in parallel. If one fails, others still finish.
+    // Run all queries in parallel for speed.
     const results = await Promise.allSettled([
       prisma.teacher.findMany({ orderBy: { createdAt: 'desc' }, include: { bookings: true } }),
       prisma.student.findMany({ orderBy: { createdAt: 'desc' } }),
@@ -24,7 +24,12 @@ export async function GET() {
           course: { select: { title: true } }
         }
       }),
-      // Try to fetch settings, handle failure gracefully inside
+      // Payouts (Added to parallel fetch)
+      prisma.payout.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: { teacher: { select: { name: true, email: true } } }
+      }),
+      // Settings
       prisma.systemSettings.findFirst()
     ]);
 
@@ -35,7 +40,8 @@ export async function GET() {
     const packages = results[3].status === 'fulfilled' ? results[3].value : [];
     const faqs = results[4].status === 'fulfilled' ? results[4].value : [];
     const bookings = results[5].status === 'fulfilled' ? results[5].value : [];
-    let settings = results[6].status === 'fulfilled' ? results[6].value : null;
+    const payouts = results[6].status === 'fulfilled' ? results[6].value : []; // <--- Extracted Payouts
+    let settings = results[7].status === 'fulfilled' ? results[7].value : null;
 
     // Log errors if any
     results.forEach((r, i) => {
@@ -45,17 +51,16 @@ export async function GET() {
     // Handle Settings (Create Default if missing)
     if (!settings) {
       try {
-        // Double check if table exists by trying to create
         settings = await prisma.systemSettings.create({
           data: { commissionRate: 10, supportEmail: "support@platform.com" }
         });
       } catch (e) {
         console.error("Failed to create default settings:", e);
-        settings = { commissionRate: 10, maintenanceMode: false, supportEmail: "error@setup.com" }; // Fallback
+        settings = { commissionRate: 10, maintenanceMode: false, supportEmail: "error@setup.com" }; 
       }
     }
 
-    // Content Moderation (Courses & Reviews)
+    // Content Moderation (Courses & Reviews) - Fetched safely
     const courses = await prisma.course.findMany({ orderBy: { createdAt: 'desc' }, include: { teacher: { select: { name: true } } } }).catch(() => []);
     const reviews = await prisma.review.findMany({ orderBy: { createdAt: 'desc' }, include: { teacher: { select: { name: true } }, student: { select: { name: true } } } }).catch(() => []);
 
@@ -74,6 +79,7 @@ export async function GET() {
 
     return NextResponse.json({ 
       teachers, students, pages, packages, faqs, bookings, 
+      payouts, // <--- ADDED PAYOUTS HERE (Crucial Step)
       courses, reviews, settings, totalRevenue, platformProfit 
     });
 
@@ -82,7 +88,7 @@ export async function GET() {
     // Return empty structure instead of 500 error so dashboard doesn't break
     return NextResponse.json({ 
       teachers: [], students: [], pages: [], packages: [], faqs: [], bookings: [], 
-      courses: [], reviews: [], settings: {}, totalRevenue: 0 
+      payouts: [], courses: [], reviews: [], settings: {}, totalRevenue: 0 
     });
   }
 }
@@ -117,6 +123,11 @@ export async function PUT(req: Request) {
     if (action === 'update_faq') {
       if (id && id.length > 5) await prisma.fAQ.update({ where: { id }, data });
       else await prisma.fAQ.create({ data });
+    }
+
+    // 6. Approve Payout
+    if (action === 'approve_payout') {
+      await prisma.payout.update({ where: { id }, data: { status: 'paid' } });
     }
 
     return NextResponse.json({ success: true });

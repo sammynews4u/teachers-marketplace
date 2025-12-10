@@ -2,18 +2,22 @@
 
 import Navbar from '../../components/Navbar';
 import ChatWindow from '../../components/ChatWindow'; 
-import UploadButton from '../../components/UploadButton'; // <--- Image Upload
+import UploadButton from '../../components/UploadButton'; 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { trackConversion } from '../../lib/analytics';
 import dynamic from 'next/dynamic';
+import { trackConversion } from '../../lib/analytics'; // Analytics
 import { 
   Users, DollarSign, Calendar, Edit2, 
   Clock, MessageSquare, Star, Video, Plus, Trash2, 
-  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone 
+  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone, Wallet
 } from 'lucide-react';
 
-const PaystackButton = dynamic(() => import('react-paystack').then((mod) => mod.PaystackButton), { ssr: false });
+// Dynamic Import for Paystack (Prevents SSR errors)
+const PaystackButton = dynamic(
+  () => import('react-paystack').then((mod) => mod.PaystackButton),
+  { ssr: false }
+);
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -25,6 +29,10 @@ export default function TeacherDashboard() {
   const [activeTab, setActiveTab] = useState('classroom'); 
   const [earnings, setEarnings] = useState(0);
 
+  // WALLET STATE
+  const [wallet, setWallet] = useState<any>({ availableBalance: 0, payouts: [], totalEarnings: 0 });
+  const [bankForm, setBankForm] = useState({ bankName: '', accountNumber: '', accountName: '', amount: '' });
+
   // ONBOARDING
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
@@ -35,6 +43,7 @@ export default function TeacherDashboard() {
   });
   const [showCourseForm, setShowCourseForm] = useState(false);
 
+  // PAYSTACK KEY
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
 
   useEffect(() => {
@@ -42,7 +51,7 @@ export default function TeacherDashboard() {
     const id = localStorage.getItem('teacherId');
     if (!id) { router.push('/login'); return; }
 
-    // Fetch Teacher
+    // 1. Fetch Teacher Data
     fetch('/api/teacher-dashboard', { method: 'POST', body: JSON.stringify({ teacherId: id }) })
     .then(res => res.json())
     .then(data => {
@@ -54,8 +63,14 @@ export default function TeacherDashboard() {
       }
     });
 
-    // Fetch Courses
+    // 2. Fetch Courses
     fetch(`/api/courses?teacherId=${id}`).then(res => res.json()).then(data => setCourses(data));
+
+    // 3. Fetch Wallet Data
+    fetch('/api/payouts', { method: 'POST', body: JSON.stringify({ teacherId: id }) })
+      .then(res => res.json())
+      .then(data => setWallet(data));
+
   }, []);
 
   // --- HANDLERS ---
@@ -92,7 +107,21 @@ export default function TeacherDashboard() {
     const res = await fetch('/api/packages/purchase', {
       method: 'POST', body: JSON.stringify({ teacherId: teacher.id, plan, amount, reference: reference.reference }), headers: { 'Content-Type': 'application/json' }
     });
-    if (res.ok) trackConversion('Purchase', amount); { alert("Success!"); window.location.reload(); }
+    
+    if (res.ok) { 
+      trackConversion('Purchase', amount);
+      alert("Success!"); 
+      window.location.reload(); 
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if(parseInt(bankForm.amount) > wallet.availableBalance) return alert("Insufficient funds");
+    if(!bankForm.bankName || !bankForm.accountNumber) return alert("Please fill bank details");
+    
+    await fetch('/api/payouts', { method: 'PUT', body: JSON.stringify({ teacherId: teacher.id, ...bankForm }) });
+    alert("Withdrawal Request Sent!");
+    window.location.reload();
   };
 
   const getGreeting = () => {
@@ -171,10 +200,7 @@ export default function TeacherDashboard() {
                <img src={teacher.image} className="relative w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4 mt-8"/>
                {isEditing ? (
                   <div className="space-y-3">
-                    {/* IMAGE UPLOAD BUTTON */}
-                    <div className="flex justify-center">
-                        <UploadButton onUpload={(url) => setTeacher({...teacher, image: url})} />
-                    </div>
+                    <div className="flex justify-center"><UploadButton onUpload={(url) => setTeacher({...teacher, image: url})} /></div>
                     <input aria-label="Name" value={teacher.name} onChange={e => setTeacher({...teacher, name: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input aria-label="Subject" value={teacher.subject} onChange={e => setTeacher({...teacher, subject: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input aria-label="Rate" type="number" value={teacher.hourlyRate} onChange={e => setTeacher({...teacher, hourlyRate: e.target.value})} className="border p-2 w-full rounded text-sm"/>
@@ -189,7 +215,12 @@ export default function TeacherDashboard() {
                   </>
                )}
             </div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border"><p className="text-gray-500 text-xs font-bold uppercase">Earnings</p><p className="text-2xl font-bold text-green-600">${earnings.toLocaleString()}</p></div>
+            
+            {/* WALLET MINI CARD */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border">
+               <p className="text-gray-500 text-xs font-bold uppercase">Wallet Balance</p>
+               <p className="text-3xl font-bold text-green-600">${wallet.availableBalance?.toLocaleString()}</p>
+            </div>
           </div>
 
           {/* RIGHT: CONTENT TABS */}
@@ -200,6 +231,7 @@ export default function TeacherDashboard() {
               <button onClick={() => setActiveTab('classroom')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'classroom' ? 'bg-white shadow' : 'text-gray-500'}`}>Classroom</button>
               <button onClick={() => setActiveTab('courses')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'courses' ? 'bg-white shadow' : 'text-gray-500'}`}>My Courses</button>
               <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow' : 'text-gray-500'}`}>Messages</button>
+              <button onClick={() => setActiveTab('wallet')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'wallet' ? 'bg-white shadow text-green-700' : 'text-gray-500'}`}>💰 Wallet</button>
               <button onClick={() => setActiveTab('boost')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'boost' ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow' : 'text-gray-500'}`}>🚀 Boost</button>
             </div>
 
@@ -274,7 +306,46 @@ export default function TeacherDashboard() {
               </div>
             )}
 
-            {/* TAB 4: BOOST PROFILE */}
+            {/* TAB 4: WALLET */}
+            {activeTab === 'wallet' && (
+              <div className="space-y-6 animate-in fade-in">
+                <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-8 text-white shadow-lg">
+                  <p className="text-green-100 font-bold uppercase text-xs tracking-wider mb-1">Available to Withdraw</p>
+                  <h2 className="text-5xl font-bold">${wallet.availableBalance?.toLocaleString()}</h2>
+                  <p className="mt-4 text-sm opacity-80">Total Lifetime Earnings: ${wallet.totalEarnings?.toLocaleString()}</p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* Withdrawal Form */}
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="font-bold text-lg mb-4 text-gray-800">Request Withdrawal</h3>
+                    <div className="space-y-4">
+                      <input aria-label="Bank" className="w-full border p-3 rounded-lg" placeholder="Bank Name" onChange={e => setBankForm({...bankForm, bankName: e.target.value})} />
+                      <input aria-label="Account Num" className="w-full border p-3 rounded-lg" placeholder="Account Number" onChange={e => setBankForm({...bankForm, accountNumber: e.target.value})} />
+                      <input aria-label="Account Name" className="w-full border p-3 rounded-lg" placeholder="Account Name" onChange={e => setBankForm({...bankForm, accountName: e.target.value})} />
+                      <input aria-label="Amount" type="number" className="w-full border p-3 rounded-lg" placeholder="Amount ($)" onChange={e => setBankForm({...bankForm, amount: e.target.value})} />
+                      <button onClick={handleWithdraw} className="w-full bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-gray-800">Withdraw Funds</button>
+                    </div>
+                  </div>
+
+                  {/* History */}
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="font-bold text-lg mb-4 text-gray-800">Payout History</h3>
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {wallet.payouts?.length === 0 && <p className="text-gray-400 text-sm">No history yet.</p>}
+                      {wallet.payouts?.map((p: any) => (
+                        <div key={p.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                           <div><p className="font-bold text-gray-900">${p.amount}</p><p className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</p></div>
+                           <span className={`text-xs font-bold px-2 py-1 rounded capitalize ${p.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: BOOST PROFILE */}
             {activeTab === 'boost' && (
               <div className="space-y-6 animate-in fade-in">
                 <div className="grid md:grid-cols-3 gap-4">
