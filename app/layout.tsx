@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// 1. Import the Language Provider we just created
 import { LanguageProvider } from "../context/LanguageContext"; 
 import PixelScripts from '../components/PixelScripts';
+import { Suspense } from "react"; // <--- NEW IMPORT
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TeachersB - Find the Best Tutors", // I updated the title for you
+  title: "TeachersB - Find the Best Tutors", 
   description: "The #1 Marketplace for English Teachers and Students",
 };
 
@@ -30,9 +30,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* 2. Wrap the children with the Provider */}
         <LanguageProvider>
-           <PixelScripts />
+           {/* Wrap PixelScripts in Suspense to fix the build error */}
+           <Suspense fallback={null}>
+             <PixelScripts />
+           </Suspense>
+           
           {children}
         </LanguageProvider>
       </body>
