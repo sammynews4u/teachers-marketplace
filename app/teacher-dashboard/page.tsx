@@ -10,7 +10,7 @@ import dynamic from 'next/dynamic';
 import { 
   Users, DollarSign, Calendar, Edit2, 
   Clock, MessageSquare, Star, Video, Plus, Trash2, 
-  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone, Wallet as WalletIcon
+  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone, Wallet
 } from 'lucide-react';
 
 const PaystackButton = dynamic(
@@ -24,6 +24,10 @@ export default function TeacherDashboard() {
 
   const [teacher, setTeacher] = useState<any>(null);
   const [courses, setCourses] = useState<any[]>([]);
+  
+  // NEW: Store Admin Packages
+  const [packages, setPackages] = useState<any[]>([]); 
+
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('classroom'); 
   const [earnings, setEarnings] = useState(0);
@@ -69,15 +73,19 @@ export default function TeacherDashboard() {
       .then(res => res.json())
       .then(data => setWallet(data));
 
+    // 4. Fetch Admin Packages (NEW)
+    fetch('/api/public/packages')
+      .then(res => res.json())
+      .then(data => {
+        if(Array.isArray(data)) setPackages(data);
+      });
+
   }, []);
 
   // --- HANDLERS ---
 
-  // Initialize Chat
   const handleStartChat = async (studentId: string) => {
     if (!confirm("Start a conversation with this student?")) return;
-    
-    // Create the conversation by sending a system message
     await fetch('/api/chat', {
       method: 'POST',
       body: JSON.stringify({
@@ -88,8 +96,6 @@ export default function TeacherDashboard() {
       }),
       headers: { 'Content-Type': 'application/json' }
     });
-    
-    // Switch to messages tab
     setActiveTab('messages');
   };
 
@@ -126,10 +132,9 @@ export default function TeacherDashboard() {
       method: 'POST', body: JSON.stringify({ teacherId: teacher.id, plan, amount, reference: reference.reference }), headers: { 'Content-Type': 'application/json' }
     });
     
-    // Fixed Block
     if (res.ok) { 
       trackConversion('Purchase', amount);
-      alert("Success! Your profile is now boosted."); 
+      alert(`Success! You are now on the ${plan} plan.`); 
       window.location.reload(); 
     }
   };
@@ -147,6 +152,21 @@ export default function TeacherDashboard() {
     const h = new Date().getHours(); return h < 12 ? "Good Morning" : h < 18 ? "Good Afternoon" : "Good Evening";
   };
 
+  // Helper to determine card style based on package name
+  const getPackageStyle = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('gold')) return 'border-yellow-400 bg-yellow-50';
+    if (lower.includes('silver')) return 'border-gray-300 bg-gray-50';
+    return 'border-orange-200 bg-orange-50';
+  };
+
+  const getButtonStyle = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('gold')) return 'bg-yellow-500 text-white';
+    if (lower.includes('silver')) return 'bg-gray-700 text-white';
+    return 'bg-orange-500 text-white';
+  };
+
   if (!mounted) return null;
   if (!teacher) return <div className="p-20 text-center text-blue-600 font-bold">Loading Dashboard...</div>;
 
@@ -154,42 +174,20 @@ export default function TeacherDashboard() {
     <div className="min-h-screen bg-gray-50 relative pt-16"> 
       <Navbar />
 
-      {/* UPGRADE ALERT */}
       {teacher.plan === 'free' && (
         <div onClick={() => setActiveTab('boost')} className="bg-gradient-to-r from-orange-500 to-red-600 text-white p-3 text-center cursor-pointer hover:opacity-90 transition shadow-md group">
           <p className="font-bold text-sm flex items-center justify-center gap-2 animate-pulse"><Megaphone size={20} /> UPGRADE TO GET MORE STUDENTS! <span className="underline">Boost Now</span><ArrowRight size={18} /></p>
         </div>
       )}
 
-      {/* ONBOARDING MODAL */}
       {showOnboarding && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="h-32 bg-blue-600 flex items-center justify-center"><ShieldCheck className="text-white w-16 h-16" /></div>
             <div className="p-8">
-              {onboardingStep === 1 && (
-                <div className="text-center space-y-4">
-                  <h2 className="text-2xl font-bold">Welcome Teacher! 👋</h2>
-                  <p className="text-gray-500">Let's set you up to teach languages effectively.</p>
-                  <button onClick={() => setOnboardingStep(2)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Start Tour</button>
-                </div>
-              )}
-              {onboardingStep === 2 && (
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-center">Success Tips 🚀</h2>
-                  <div className="space-y-4">
-                    <div className="flex gap-4"><div className="bg-green-100 p-3 rounded"><CheckCircle2 className="text-green-600"/></div><div><h4 className="font-bold">Get Verified</h4><p className="text-sm text-gray-500">Verified tutors get 3x more students.</p></div></div>
-                  </div>
-                  <button onClick={() => setOnboardingStep(3)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Next</button>
-                </div>
-              )}
-              {onboardingStep === 3 && (
-                <div className="space-y-4">
-                  <h2 className="text-2xl font-bold text-center">Terms</h2>
-                  <div className="h-32 overflow-y-auto bg-gray-50 p-4 text-xs border"><p>1. Be professional.<br/>2. No-shows penalized.</p></div>
-                  <button onClick={handleFinishOnboarding} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">I Agree & View Plans</button>
-                </div>
-              )}
+              {onboardingStep === 1 && (<div className="text-center space-y-4"><h2 className="text-2xl font-bold">Welcome Teacher! 👋</h2><p className="text-gray-500">Let's set you up to teach languages effectively.</p><button onClick={() => setOnboardingStep(2)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Start Tour</button></div>)}
+              {onboardingStep === 2 && (<div className="space-y-6"><h2 className="text-2xl font-bold text-center">Success Tips 🚀</h2><div className="space-y-4"><div className="flex gap-4"><div className="bg-green-100 p-3 rounded"><CheckCircle2 className="text-green-600"/></div><div><h4 className="font-bold">Get Verified</h4><p className="text-sm text-gray-500">Verified tutors get 3x more students.</p></div></div></div><button onClick={() => setOnboardingStep(3)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Next</button></div>)}
+              {onboardingStep === 3 && (<div className="space-y-4"><h2 className="text-2xl font-bold text-center">Terms</h2><div className="h-32 overflow-y-auto bg-gray-50 p-4 text-xs border"><p>1. Be professional.<br/>2. No-shows penalized.</p></div><button onClick={handleFinishOnboarding} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">I Agree & View Plans</button></div>)}
             </div>
           </div>
         </div>
@@ -202,8 +200,7 @@ export default function TeacherDashboard() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <p className="text-gray-500 font-medium">{getGreeting()},</p>
-              {teacher.plan === 'gold' && <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-yellow-300 flex items-center gap-1"><Crown size={12}/> GOLD</span>}
-              {teacher.plan === 'silver' && <span className="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-300 flex items-center gap-1"><ShieldCheck size={12}/> SILVER</span>}
+              {teacher.plan !== 'free' && <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-yellow-300 flex items-center gap-1"><Crown size={12}/> {teacher.plan.toUpperCase()}</span>}
             </div>
             <h1 className="text-4xl font-bold text-gray-900">{teacher.name} 👋</h1>
           </div>
@@ -215,7 +212,7 @@ export default function TeacherDashboard() {
           {/* LEFT: PROFILE & EARNINGS */}
           <div className="space-y-8">
             <div className="bg-white p-6 rounded-2xl shadow-sm border text-center relative overflow-hidden">
-               <div className={`absolute top-0 left-0 w-full h-20 bg-gradient-to-r ${teacher.plan === 'gold' ? 'from-yellow-400 to-orange-500' : 'from-blue-600 to-purple-600'}`}></div>
+               <div className={`absolute top-0 left-0 w-full h-20 bg-gradient-to-r ${teacher.plan.includes('gold') ? 'from-yellow-400 to-orange-500' : 'from-blue-600 to-purple-600'}`}></div>
                <img src={teacher.image} className="relative w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4 mt-8"/>
                {isEditing ? (
                   <div className="space-y-3">
@@ -240,7 +237,6 @@ export default function TeacherDashboard() {
           {/* RIGHT: CONTENT TABS */}
           <div className="lg:col-span-2">
             
-            {/* TAB BUTTONS */}
             <div className="flex flex-wrap gap-4 mb-6 bg-gray-200 p-1 rounded-2xl w-fit">
               <button onClick={() => setActiveTab('classroom')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'classroom' ? 'bg-white shadow' : 'text-gray-500'}`}>Classroom</button>
               <button onClick={() => setActiveTab('courses')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'courses' ? 'bg-white shadow' : 'text-gray-500'}`}>My Courses</button>
@@ -263,7 +259,6 @@ export default function TeacherDashboard() {
                              <p className="font-bold">{b.student?.name}</p>
                              <p className="text-xs text-gray-500 flex items-center gap-1">
                                {b.type === 'trial' ? 'Free Trial' : 'Paid Student'}
-                               {b.scheduledAt && <span className="text-orange-500 font-bold ml-1">• {new Date(b.scheduledAt).toLocaleDateString()}</span>}
                              </p>
                            </div>
                          </div>
@@ -282,7 +277,7 @@ export default function TeacherDashboard() {
                 
                 {showCourseForm && (
                   <form onSubmit={handleCreateCourse} className="bg-white p-6 rounded-xl shadow-lg border space-y-4 relative">
-                    <button type="button" onClick={() => setShowCourseForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold">Cancel</button>
+                    <button type="button" onClick={() => setShowCourseForm(false)} className="absolute top-4 right-4 text-gray-400 font-bold">Cancel</button>
                     <h3 className="font-bold text-lg">New Language Course</h3>
                     <input aria-label="Title" required placeholder="Title (e.g. Beginners French)" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, title: e.target.value})} />
                     <textarea aria-label="Desc" required placeholder="Description" className="w-full border p-3 rounded-lg h-24" onChange={e => setNewCourse({...newCourse, description: e.target.value})} />
@@ -313,7 +308,7 @@ export default function TeacherDashboard() {
               </div>
             )}
 
-            {/* TAB 3: MESSAGES (CHAT) */}
+            {/* TAB 3: MESSAGES */}
             {activeTab === 'messages' && (
               <div className="bg-white rounded-2xl shadow-sm border p-1 animate-in fade-in h-[600px]">
                 <ChatWindow myId={teacher.id} myType="teacher" />
@@ -355,26 +350,43 @@ export default function TeacherDashboard() {
               </div>
             )}
 
-            {/* TAB 5: BOOST PROFILE */}
+            {/* TAB 5: DYNAMIC BOOST PROFILE */}
             {activeTab === 'boost' && (
               <div className="space-y-6 animate-in fade-in">
-                <div className="grid md:grid-cols-3 gap-4">
-                  {/* BRONZE - $10 */}
-                  <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-orange-800 font-bold">Bronze</h4><p className="text-2xl font-bold mb-4">$10</p>
-                    {/* @ts-ignore */}
-                    <PaystackButton email={teacher.email} amount={10 * 100} currency="USD" publicKey={publicKey} text="Buy Bronze" onSuccess={(ref: any) => handlePackageSuccess(ref, 'bronze', 10)} className="w-full bg-orange-100 text-orange-700 font-bold py-3 rounded-lg"/>
+                {packages.length === 0 ? (
+                  <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <p className="text-gray-500">No ad packages available at the moment.</p>
+                    <p className="text-xs text-gray-400">Please check back later or contact admin.</p>
                   </div>
-                  {/* SILVER - $20 */}
-                  <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-gray-600 font-bold">Silver</h4><p className="text-2xl font-bold mb-4">$20</p>
-                    {/* @ts-ignore */}
-                    <PaystackButton email={teacher.email} amount={20 * 100} currency="USD" publicKey={publicKey} text="Buy Silver" onSuccess={(ref: any) => handlePackageSuccess(ref, 'silver', 20)} className="w-full bg-gray-700 text-white font-bold py-3 rounded-lg"/>
+                ) : (
+                  <div className="grid md:grid-cols-3 gap-4">
+                    {packages.map((pkg) => (
+                      <div key={pkg.id} className={`bg-white border-2 rounded-2xl p-6 hover:shadow-lg transition ${getPackageStyle(pkg.name)}`}>
+                        {pkg.name.toLowerCase().includes('gold') && <div className="text-xs font-bold text-yellow-600 uppercase mb-2">⭐ Best Value</div>}
+                        <h4 className="font-bold text-lg">{pkg.name}</h4>
+                        <p className="text-3xl font-bold mb-2">${pkg.price}</p>
+                        <p className="text-sm text-gray-500 mb-6">{pkg.description}</p>
+                        
+                        <div className="mb-6 space-y-2">
+                           {pkg.features.split(',').map((f: string, i: number) => (
+                             <p key={i} className="text-xs flex gap-2 items-center text-gray-600"><CheckCircle2 size={12} className="text-green-500"/> {f.trim()}</p>
+                           ))}
+                        </div>
+
+                        {/* @ts-ignore */}
+                        <PaystackButton 
+                          email={teacher.email} 
+                          amount={pkg.price * 100} // Convert to cents/kobo
+                          currency="USD" 
+                          publicKey={publicKey} 
+                          text={`Buy ${pkg.name}`} 
+                          onSuccess={(ref: any) => handlePackageSuccess(ref, pkg.name.toLowerCase(), pkg.price)} 
+                          className={`w-full py-3 rounded-lg font-bold transition shadow-sm ${getButtonStyle(pkg.name)}`}
+                        />
+                      </div>
+                    ))}
                   </div>
-                  {/* GOLD - $30 */}
-                  <div className="bg-white border-2 border-yellow-400 rounded-2xl p-6 hover:shadow-lg relative"><div className="absolute top-0 right-0 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-bl">BEST</div><h4 className="text-yellow-600 font-bold">Gold</h4><p className="text-2xl font-bold mb-4">$30</p>
-                    {/* @ts-ignore */}
-                    <PaystackButton email={teacher.email} amount={30 * 100} currency="USD" publicKey={publicKey} text="Buy Gold" onSuccess={(ref: any) => handlePackageSuccess(ref, 'gold', 30)} className="w-full bg-yellow-500 text-white font-bold py-3 rounded-lg"/>
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
