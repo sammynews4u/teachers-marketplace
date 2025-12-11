@@ -6,59 +6,49 @@ export const accountpe = {
   // 1. Get Authentication Token
   getToken: async () => {
     try {
-      console.log("AccountPe: Attempting Auth...");
+      console.log("AccountPe: Logging in...");
       const res = await fetch(`${BASE_URL}/admin/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: EMAIL,
-          password: PASSWORD
-        })
+        body: JSON.stringify({ email: EMAIL, password: PASSWORD })
       });
       
       const data = await res.json();
       
       if (!res.ok) {
-        console.error("AccountPe Auth Failed:", data);
-        return null;
+        console.error("AccountPe Login Failed:", data);
+        throw new Error(data.message || "Login failed");
       }
       
-      // Check different variations of where the token might be
+      // Try finding the token in different common spots
       const token = data.token || data.data?.token || data.access_token;
-      if (!token) console.error("AccountPe: No token found in response", data);
+      if (!token) throw new Error("No token returned from login");
       
       return token;
-    } catch (error) {
-      console.error("AccountPe Auth Network Error:", error);
+    } catch (error: any) {
+      console.error("Auth Error:", error.message);
       return null;
     }
   },
 
   // 2. Initialize Payment
-  initialize: async (data: { 
-    name: string; 
-    email: string; 
-    amount: number; 
-    ref: string; 
-    mobile?: string;
-  }) => {
+  initialize: async (data: { name: string; email: string; amount: number; ref: string; mobile?: string }) => {
     try {
       const token = await accountpe.getToken();
-      if (!token) return { status: false, error: "Authentication failed" };
+      if (!token) return { status: false, error: "Authentication failed. Check Email/Password in Env." };
 
-      // YAML Spec: country_code, name, email, transaction_id, amount, pass_digital_charge
       const payload = {
-        country_code: "US", // Changed to US for Dollar payments (or try 'NG' if it fails)
+        country_code: "NG", // Try NG first. If this fails, we try US.
         name: data.name,
         email: data.email,
-        mobile: data.mobile || "0000000000",
+        mobile: data.mobile || "08000000000",
         amount: data.amount, 
         transaction_id: data.ref,
-        description: "Service Payment",
-        pass_digital_charge: false // Required by YAML
+        description: "Payment",
+        pass_digital_charge: false
       };
 
-      console.log("AccountPe: Sending Payload:", JSON.stringify(payload));
+      console.log("AccountPe Payload:", JSON.stringify(payload));
 
       const response = await fetch(`${BASE_URL}/create_payment_links`, {
         method: 'POST',
@@ -70,20 +60,22 @@ export const accountpe = {
       });
 
       const result = await response.json();
-      console.log("AccountPe Response:", result);
+      console.log("AccountPe Result:", result);
       
-      // Check for success (YAML says 200 OK)
-      if (response.ok && result.status === 200) {
-        // Look for the link in likely places
-        const link = result.data?.payment_link || result.data?.link || result.data?.url;
+      // Check for success
+      if (response.ok && (result.status === 200 || result.status === 1 || result.status === true)) {
+        const link = result.data?.payment_url || result.data?.link || result.data?.url;
         if (link) return { status: true, paymentUrl: link };
       }
 
-      return { status: false, error: result.message || "Unknown Gateway Error" };
+      // Return the specific error message from AccountPe
+      return { 
+        status: false, 
+        error: result.message || JSON.stringify(result.data) || "Unknown Gateway Error" 
+      };
 
-    } catch (error) {
-      console.error("AccountPe Init Exception:", error);
-      return { status: false, error: "Network Error" };
+    } catch (error: any) {
+      return { status: false, error: error.message };
     }
   },
 
@@ -103,14 +95,11 @@ export const accountpe = {
       });
 
       const result = await response.json();
-      console.log("Verify Response:", result);
-      
       if (result.status === 200 || result.message?.toLowerCase().includes('success')) {
         return { status: true };
       }
       return { status: false };
     } catch (error) {
-      console.error("Verify Error:", error);
       return { status: false };
     }
   }

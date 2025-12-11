@@ -122,7 +122,7 @@ export default function TeacherDashboard() {
 
   // --- NEW: Handle Package Purchase via AccountPe ---
   const handleBuyPackage = async (planName: string, price: number) => {
-    setProcessingPackage(true);
+    // setProcessingPackage(true); // Uncomment if you have this state
     try {
       const res = await fetch('/api/packages/purchase', {
         method: 'POST', 
@@ -139,14 +139,15 @@ export default function TeacherDashboard() {
 
       if (data.success && data.paymentUrl) {
          trackConversion('AddToCart', price);
-         window.location.href = data.paymentUrl; // Redirect to Gateway
+         window.location.href = data.paymentUrl; // Redirect
       } else {
-         alert("Payment Failed");
-         setProcessingPackage(false);
+         // SHOW THE REAL ERROR MESSAGE
+         alert(`Payment Failed: ${data.error}`);
+         // setProcessingPackage(false);
       }
     } catch(e) { 
-        alert("Error connecting to payment gateway");
-        setProcessingPackage(false);
+        alert("Network Error: Could not connect to server.");
+        // setProcessingPackage(false);
     }
   };
 
