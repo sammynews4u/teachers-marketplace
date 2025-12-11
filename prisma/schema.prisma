@@ -78,10 +78,16 @@ model Course {
   endDate      DateTime
   schedule     String    
   classroomUrl String?   
-  image        String?   
+  image        String?
   published    Boolean   @default(false)
   createdAt    DateTime  @default(now())
 
+  // --- NEW LMS FIELDS ---
+  language     String    @default("English") // e.g., French, Spanish
+  level        String    @default("Beginner") // Beginner, Intermediate, Advanced
+  outcomes     String?   // "Speak fluently, Master Grammar" (Comma separated)
+  requirements String?   // "Laptop, Basic knowledge"
+  
   teacherId    String
   teacher      Teacher   @relation(fields: [teacherId], references: [id])
   bookings     Booking[]

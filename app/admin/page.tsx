@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const [showFAQForm, setShowFAQForm] = useState(false);
   const [settingsForm, setSettingsForm] = useState({ commissionRate: 10, supportEmail: '', maintenanceMode: false });
 
-  // COURSE VIEW STATE
+  // COURSE PREVIEW
   const [viewingCourse, setViewingCourse] = useState<any>(null);
 
   useEffect(() => { setMounted(true); }, []);
@@ -101,9 +101,9 @@ export default function AdminDashboard() {
   const COLORS = ['#94a3b8', '#fb923c', '#60a5fa', '#facc15'];
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       {/* COURSE PREVIEW MODAL */}
       {viewingCourse && (
         <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
@@ -114,6 +114,10 @@ export default function AdminDashboard() {
                 </div>
                 <div className="p-6 overflow-y-auto flex-1">
                     <p className="text-gray-500 mb-4 text-sm">{viewingCourse.description}</p>
+                    <div className="flex gap-4 mb-4 text-xs font-bold text-gray-500 uppercase tracking-wide">
+                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">{viewingCourse.language || "English"}</span>
+                        <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded">{viewingCourse.level || "Beginner"}</span>
+                    </div>
                     <h4 className="font-bold mb-2">Curriculum</h4>
                     {viewingCourse.modules?.length === 0 && <p className="text-gray-400 text-sm">No content uploaded yet.</p>}
                     <div className="space-y-4">
@@ -190,7 +194,7 @@ export default function AdminDashboard() {
 
         {/* TEACHERS */}
         {activeTab === 'teachers' && (
-          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Name</th><th className="p-4">Plan</th><th className="p-4">Status</th><th className="p-4">Verify</th><th className="p-4">Actions</th></tr></thead><tbody>{data.teachers.map((t: any) => (<tr key={t.id} className="hover:bg-gray-50 border-b"><td className="p-4 font-bold">{t.name}<br/><span className="text-xs text-gray-500 font-normal">{t.email}</span></td><td className="p-4">{t.plan || 'Free'}</td><td className="p-4">{t.isSuspended ? <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Suspended</span> : <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>}</td><td className="p-4 flex gap-2"><button onClick={()=>handleVerify(t)} className={`px-2 py-1 rounded border text-xs font-bold ${t.isVerified ? 'bg-blue-50 text-blue-600' : 'bg-gray-100'}`}>{t.isVerified ? 'Ok' : 'Verify'}</button><button onClick={()=>handleSuspend(t.id, 'teacher', t.isSuspended)} title="Suspend" className="text-orange-500 bg-orange-50 p-2 rounded"><Ban size={16}/></button><button onClick={()=>handleDelete(t.id, 'teacher')} className="text-red-500 bg-red-50 p-2 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
+          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Name</th><th className="p-4">Status</th><th className="p-4">Verify</th><th className="p-4">Actions</th></tr></thead><tbody>{data.teachers.map((t: any) => (<tr key={t.id} className="hover:bg-gray-50 border-b"><td className="p-4 font-bold">{t.name}<br/><span className="text-xs text-gray-500 font-normal">{t.email}</span></td><td className="p-4">{t.isSuspended ? <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Suspended</span> : <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>}</td><td className="p-4 flex gap-2"><button onClick={()=>handleVerify(t)} className={`px-2 py-1 rounded border text-xs font-bold ${t.isVerified ? 'bg-blue-50 text-blue-600' : 'bg-gray-100'}`}>{t.isVerified ? 'Ok' : 'Verify'}</button><button onClick={()=>handleSuspend(t.id, 'teacher', t.isSuspended)} title="Suspend" className="text-orange-500 bg-orange-50 p-2 rounded"><Ban size={16}/></button><button onClick={()=>handleDelete(t.id, 'teacher')} className="text-red-500 bg-red-50 p-2 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
         )}
         
         {/* STUDENTS */}
@@ -231,7 +235,7 @@ export default function AdminDashboard() {
           <div className="grid md:grid-cols-3 gap-8"><div className="bg-white p-6 rounded-xl shadow-sm h-fit"><h3 className="font-bold mb-4">Pages</h3><ul className="space-y-2 mb-4">{data.pages.map((p: any) => <li key={p.id} className="flex justify-between p-2 bg-gray-50 rounded"><span className="font-medium">{p.title}</span><button onClick={() => setEditingPage(p)} className="text-blue-500"><Edit size={16}/></button></li>)}</ul><button onClick={() => setEditingPage({ slug: '', title: '', content: '' })} className="w-full border-2 border-dashed border-gray-300 py-2 rounded-lg text-gray-500"><Plus size={16} className="mx-auto"/></button></div><div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm space-y-4"><input aria-label="Title" className="w-full border p-2 rounded" placeholder="Title" value={editingPage.title} onChange={e => setEditingPage({...editingPage, title: e.target.value})}/><input aria-label="Slug" className="w-full border p-2 rounded" placeholder="Slug" value={editingPage.slug} onChange={e => setEditingPage({...editingPage, slug: e.target.value})}/><textarea aria-label="Content" className="w-full border p-2 rounded h-64 font-mono text-sm" placeholder="Content" value={editingPage.content} onChange={e => setEditingPage({...editingPage, content: e.target.value})}/><button onClick={handleSavePage} className="bg-green-600 text-white px-6 py-2 rounded font-bold">Save Page</button></div></div>
         )}
 
-        {/* SETTINGS (NEW) */}
+        {/* SETTINGS */}
         {activeTab === 'settings' && (
           <div className="max-w-2xl bg-white p-8 rounded-xl shadow-sm border">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Settings size={24}/> Platform Settings</h3>
