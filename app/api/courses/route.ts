@@ -3,11 +3,11 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// POST: Create a New Course (Language Cohort)
+// POST: Create a New Course
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { teacherId, title, description, price, startDate, endDate, schedule, classroomUrl } = body;
+    const { teacherId, title, description, price, startDate, endDate, schedule, classroomUrl, image } = body;
 
     const course = await prisma.course.create({
       data: {
@@ -18,17 +18,20 @@ export async function POST(req: Request) {
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         schedule,
-        classroomUrl: classroomUrl || "" // Store Google Classroom Link
+        classroomUrl,
+        image, // <--- Added Image
+        published: false // Draft by default
       }
     });
 
     return NextResponse.json(course);
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
   }
 }
 
-// GET: Fetch Courses
+// GET: Fetch Courses (Can filter by teacherId)
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const teacherId = searchParams.get('teacherId');
@@ -37,7 +40,13 @@ export async function GET(req: Request) {
 
   const courses = await prisma.course.findMany({
     where,
-    orderBy: { startDate: 'asc' }
+    orderBy: { startDate: 'asc' },
+    include: {
+        modules: {
+            include: { lessons: true } // Fetch structure stats
+        },
+        bookings: true
+    }
   });
 
   return NextResponse.json(courses);
@@ -46,6 +55,8 @@ export async function GET(req: Request) {
 // DELETE: Remove a Course
 export async function DELETE(req: Request) {
   const { id } = await req.json();
+  // Deep delete is handled by Cascade in schema or manually here if needed
+  await prisma.booking.deleteMany({ where: { courseId: id } });
   await prisma.course.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

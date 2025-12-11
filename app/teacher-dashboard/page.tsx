@@ -10,7 +10,7 @@ import dynamic from 'next/dynamic';
 import { 
   Users, DollarSign, Calendar, Edit2, 
   Clock, MessageSquare, Star, Video, Plus, Trash2, 
-  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone, Wallet
+  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone, Wallet as WalletIcon
 } from 'lucide-react';
 
 const PaystackButton = dynamic(
@@ -219,10 +219,7 @@ export default function TeacherDashboard() {
                <img src={teacher.image} className="relative w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4 mt-8"/>
                {isEditing ? (
                   <div className="space-y-3">
-                    {/* NEW: IMAGE UPLOAD BUTTON */}
-                    <div className="flex justify-center">
-                        <UploadButton onUpload={(url) => setTeacher({...teacher, image: url})} />
-                    </div>
+                    <div className="flex justify-center"><UploadButton onUpload={(url) => setTeacher({...teacher, image: url})} /></div>
                     <input aria-label="Name" value={teacher.name} onChange={e => setTeacher({...teacher, name: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input aria-label="Subject" value={teacher.subject} onChange={e => setTeacher({...teacher, subject: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input aria-label="Rate" type="number" value={teacher.hourlyRate} onChange={e => setTeacher({...teacher, hourlyRate: e.target.value})} className="border p-2 w-full rounded text-sm"/>
@@ -331,9 +328,7 @@ export default function TeacherDashboard() {
                   <h2 className="text-5xl font-bold">${wallet.availableBalance?.toLocaleString()}</h2>
                   <p className="mt-4 text-sm opacity-80">Total Lifetime Earnings: ${wallet.totalEarnings?.toLocaleString()}</p>
                 </div>
-
                 <div className="grid md:grid-cols-2 gap-8">
-                  {/* Withdrawal Form */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg mb-4 text-gray-800">Request Withdrawal</h3>
                     <div className="space-y-4">
@@ -344,8 +339,6 @@ export default function TeacherDashboard() {
                       <button onClick={handleWithdraw} className="w-full bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-gray-800">Withdraw Funds</button>
                     </div>
                   </div>
-
-                  {/* History */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg mb-4 text-gray-800">Payout History</h3>
                     <div className="space-y-3 max-h-80 overflow-y-auto">
