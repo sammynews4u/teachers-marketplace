@@ -3,9 +3,10 @@ const EMAIL = process.env.ACCOUNTPE_EMAIL;
 const PASSWORD = process.env.ACCOUNTPE_PASSWORD;
 
 export const accountpe = {
-  // 1. Get Authentication Token (Login)
+  // 1. Get Authentication Token
   getToken: async () => {
     try {
+      console.log("AccountPe: Attempting Auth...");
       const res = await fetch(`${BASE_URL}/admin/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -17,11 +18,18 @@ export const accountpe = {
       
       const data = await res.json();
       
-      // Assuming the token is in data.token or data.data.token
-      // Check the exact response structure if possible, but usually:
-      return data.token || data.data?.token; 
+      if (!res.ok) {
+        console.error("AccountPe Auth Failed:", data);
+        return null;
+      }
+      
+      // Check different variations of where the token might be
+      const token = data.token || data.data?.token || data.access_token;
+      if (!token) console.error("AccountPe: No token found in response", data);
+      
+      return token;
     } catch (error) {
-      console.error("AccountPe Auth Error:", error);
+      console.error("AccountPe Auth Network Error:", error);
       return null;
     }
   },
@@ -36,18 +44,21 @@ export const accountpe = {
   }) => {
     try {
       const token = await accountpe.getToken();
-      if (!token) throw new Error("Failed to get Auth Token");
+      if (!token) return { status: false, error: "Authentication failed" };
 
+      // YAML Spec: country_code, name, email, transaction_id, amount, pass_digital_charge
       const payload = {
-        country_code: "NG", // Change to "US" if strictly dollars, or keep NG for Nigeria
+        country_code: "US", // Changed to US for Dollar payments (or try 'NG' if it fails)
         name: data.name,
         email: data.email,
         mobile: data.mobile || "0000000000",
-        amount: data.amount, // Ensure this is the correct unit (e.g. 100 = 100 naira/dollars)
+        amount: data.amount, 
         transaction_id: data.ref,
-        description: "Course Payment",
-        pass_digital_charge: false
+        description: "Service Payment",
+        pass_digital_charge: false // Required by YAML
       };
+
+      console.log("AccountPe: Sending Payload:", JSON.stringify(payload));
 
       const response = await fetch(`${BASE_URL}/create_payment_links`, {
         method: 'POST',
@@ -59,17 +70,20 @@ export const accountpe = {
       });
 
       const result = await response.json();
+      console.log("AccountPe Response:", result);
       
-      // Based on YAML, success is 200. Link should be in result.data
-      // You might need to check if result.data.payment_link or similar exists
-      // Let's assume result.data.link based on standard practices
-      return {
-        status: true,
-        paymentUrl: result.data?.payment_url || result.data?.link // Adjust if needed after first test
-      };
+      // Check for success (YAML says 200 OK)
+      if (response.ok && result.status === 200) {
+        // Look for the link in likely places
+        const link = result.data?.payment_link || result.data?.link || result.data?.url;
+        if (link) return { status: true, paymentUrl: link };
+      }
+
+      return { status: false, error: result.message || "Unknown Gateway Error" };
+
     } catch (error) {
-      console.error("AccountPe Init Error:", error);
-      return { status: false, error };
+      console.error("AccountPe Init Exception:", error);
+      return { status: false, error: "Network Error" };
     }
   },
 
@@ -80,7 +94,7 @@ export const accountpe = {
       if (!token) return { status: false };
 
       const response = await fetch(`${BASE_URL}/payment_link_status`, {
-        method: 'POST', // YAML says POST for verification
+        method: 'POST', 
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -89,14 +103,14 @@ export const accountpe = {
       });
 
       const result = await response.json();
+      console.log("Verify Response:", result);
       
-      // Check status field from YAML response (status: number)
-      // Usually 1 or 200 means success
-      if (result.status === 1 || result.status === 200 || result.message?.toLowerCase().includes('success')) {
+      if (result.status === 200 || result.message?.toLowerCase().includes('success')) {
         return { status: true };
       }
       return { status: false };
     } catch (error) {
+      console.error("Verify Error:", error);
       return { status: false };
     }
   }
