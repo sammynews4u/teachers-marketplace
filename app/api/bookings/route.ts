@@ -1,75 +1,98 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { sendEmail } from '@/lib/email'; 
+import { swychr } from '@/lib/swychr'; // Helper we created for Swychr
+import { sendEmail } from '@/lib/email'; // Helper for SMTP
 
 const prisma = new PrismaClient();
 
+// POST: Create a Booking & Initialize Payment
 export async function POST(req: Request) {
   try {
-    const { teacherId, studentId, amount, reference, type, scheduledAt, courseId } = await req.json();
+    const body = await req.json();
+    const { teacherId, studentId, amount, type, scheduledAt, courseId } = body;
 
-    const finalReference = type === 'trial' ? `TRIAL-${Date.now()}` : reference;
-    const finalStatus = type === 'trial' ? 'scheduled' : 'success';
+    // 1. Fetch Student details (needed for email/payment)
+    const student = await prisma.student.findUnique({ where: { id: studentId } });
+    const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
 
+    if (!student || !teacher) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // 2. Generate a Unique Reference
+    const reference = `REF-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    // 3. Determine Initial Status
+    // Trials are instant success, Paid bookings are pending until payment
+    const initialStatus = type === 'trial' ? 'success' : 'pending';
+
+    // 4. Save Booking to Database
     const booking = await prisma.booking.create({
       data: {
-        teacherId, studentId, amount, reference: finalReference, status: finalStatus, type: type || 'paid',
+        teacherId,
+        studentId,
+        amount: parseInt(amount),
+        reference,
+        status: initialStatus,
+        type: type || 'paid',
         scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
-        courseId: courseId || null
+        courseId,
+        isRefunded: false
       }
     });
 
-    const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
-    const student = await prisma.student.findUnique({ where: { id: studentId } });
-    const course = courseId ? await prisma.course.findUnique({ where: { id: courseId } }) : null;
+    // --- LOGIC BRANCH: FREE TRIAL ---
+    if (type === 'trial') {
+      // Send Email Notifications Immediately
+      await sendEmail(student.email, "Trial Booked!", `<p>You have booked a free trial with ${teacher.name}.</p>`);
+      await sendEmail(teacher.email, "New Trial Request", `<p>${student.name} has booked a free trial.</p>`);
 
-    if (teacher && student) {
-      // EMAIL TO STUDENT
-      const studentMessage = `
-        <h1>Hi ${student.name},</h1>
-        <p>Your session with <strong>${teacher.name}</strong> has been confirmed.</p>
-        <ul>
-          <li><strong>Amount:</strong> ₦${amount.toLocaleString()}</li>
-          ${course ? `<li><strong>Course:</strong> ${course.title}</li>` : ''}
-        </ul>
-
-        ${course && course.classroomUrl ? `
-          <div style="margin: 20px 0; padding: 15px; background-color: #ecfdf5; border: 1px solid #10b981; border-radius: 8px;">
-            <strong>🎓 CLASSROOM ACCESS:</strong><br/>
-            Click the link below to join the Google Classroom:<br/><br/>
-            <a href="${course.classroomUrl}" style="background-color: #059669; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Join Google Classroom</a>
-          </div>
-        ` : ''}
-
-        <a href="https://teachers-marketplace.vercel.app/student-dashboard">Go to Dashboard</a>
-      `;
-
-      await sendEmail(student.email, "Booking Confirmed! 🎉", studentMessage);
-
-      // EMAIL TO TEACHER
-      const teacherMessage = `
-        <h1>Hello ${teacher.name},</h1>
-        <p><strong>${student.name}</strong> has just booked a session.</p>
-        <a href="https://teachers-marketplace.vercel.app/teacher-dashboard">Go to Dashboard</a>
-      `;
-      await sendEmail(teacher.email, "New Booking! 💰", teacherMessage);
+      return NextResponse.json({ success: true, booking });
     }
 
-    return NextResponse.json({ success: true, booking });
+    // --- LOGIC BRANCH: PAID BOOKING (SWYCHR) ---
+    else {
+      // Initialize Payment with Swychr
+      const paymentData = await swychr.initialize({
+        email: student.email,
+        amount: parseInt(amount),
+        ref: reference,
+        // Where Swychr redirects after payment (Create this page next if you haven't)
+        callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback` 
+      });
+
+      if (paymentData && paymentData.status) {
+        return NextResponse.json({ 
+          success: true, 
+          paymentUrl: paymentData.data.authorization_url, // Redirect frontend here
+          reference 
+        });
+      } else {
+        // If Gateway fails, delete the pending booking to keep DB clean
+        await prisma.booking.delete({ where: { id: booking.id } });
+        return NextResponse.json({ error: "Payment Gateway Initialization Failed" }, { status: 502 });
+      }
+    }
 
   } catch (error) {
+    console.error("Booking Error:", error);
     return NextResponse.json({ error: 'Booking failed' }, { status: 500 });
   }
 }
 
-export async function GET() {
+// GET: Fetch Bookings (For Admin or Dashboards)
+export async function GET(req: Request) {
   try {
     const bookings = await prisma.booking.findMany({
-      include: { teacher: true, student: true, course: true },
+      include: {
+        teacher: { select: { name: true, email: true } },
+        student: { select: { name: true, email: true } },
+        course: { select: { title: true } }
+      },
       orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(bookings);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch" }, { status: 500 });
+    return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
   }
 }

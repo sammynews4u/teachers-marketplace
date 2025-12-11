@@ -1,13 +1,10 @@
 "use client";
 
-// ✅ FIXED IMPORTS using '@/' alias
-import Navbar from '@/components/Navbar'; 
-import { trackConversion } from '@/lib/analytics'; 
-
+import Navbar from '@/components/Navbar';
+import { trackConversion } from '@/lib/analytics';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { PaystackButton } from 'react-paystack';
-import { Calendar, CheckCircle2, Video, BookOpen, Clock } from 'lucide-react';
+import { Calendar, CheckCircle2, Video, BookOpen, Clock, Loader2 } from 'lucide-react';
 
 export default function HirePage() {
   const params = useParams();
@@ -22,9 +19,7 @@ export default function HirePage() {
   const [bookingType, setBookingType] = useState<'paid' | 'trial' | 'course'>('paid');
   const [trialDate, setTrialDate] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
-
-  // PAYSTACK KEY
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     // 1. Check Login
@@ -41,39 +36,30 @@ export default function HirePage() {
       fetch('/api/teachers')
         .then(res => res.json())
         .then(data => {
-          const found = data.find((t: any) => t.id === params.id);
-          setTeacher(found);
-          
-          // Fetch Courses for this teacher
-          if (found) {
-            fetch(`/api/courses?teacherId=${found.id}`)
-              .then(cRes => cRes.json())
-              .then(cData => setCourses(cData));
+          if (Array.isArray(data)) {
+            const found = data.find((t: any) => t.id === params.id);
+            setTeacher(found);
+            
+            // Fetch Courses for this teacher
+            if (found) {
+              fetch(`/api/courses?teacherId=${found.id}`)
+                .then(cRes => cRes.json())
+                .then(cData => setCourses(cData));
+            }
           }
         });
     }
   }, [params.id, router]);
 
-  // --- HANDLERS ---
+  // --- UNIFIED PAYMENT/BOOKING HANDLER ---
+  const handlePayment = async (amount: number, type: 'paid' | 'trial' | 'course', courseId: string | null = null) => {
+    
+    // Validations
+    if (type === 'trial' && !trialDate) return alert("Please select a date and time.");
+    if (type === 'course' && !courseId) return alert("Please select a course.");
 
-  const handlePaidSuccess = async (reference: any) => {
-    // Standard Hourly Booking
-    await saveBooking(teacher.hourlyRate, reference.reference, 'paid', null, null);
-  };
+    setProcessing(true);
 
-  const handleCourseSuccess = async (reference: any) => {
-    // Course/Cohort Booking
-    if (!selectedCourse) return;
-    await saveBooking(selectedCourse.price, reference.reference, 'course', null, selectedCourse.id);
-  };
-
-  const handleTrialSubmit = async () => {
-    // Free Trial (No Payment)
-    if (!trialDate) return alert("Please select a date and time for the call.");
-    await saveBooking(0, "TRIAL-" + Date.now(), 'trial', trialDate, null);
-  };
-
-  const saveBooking = async (amount: number, ref: string | null, type: string, date: string | null, courseId: string | null) => {
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
@@ -81,56 +67,40 @@ export default function HirePage() {
           teacherId: teacher.id,
           studentId: studentId,
           amount: amount,
-          reference: ref,
           type: type,
-          scheduledAt: date,
-          courseId: courseId 
+          scheduledAt: type === 'trial' ? trialDate : null,
+          courseId: courseId
         }),
         headers: { 'Content-Type': 'application/json' }
       });
 
-      if (res.ok) {
-        // --- ANALYTICS TRACKING ---
-        if (type === 'trial') {
-          trackConversion('Lead'); 
-          alert("Trial Booked Successfully!");
-        } else {
-          trackConversion('Purchase', amount); 
-          alert("Booking Successful!");
-        }
+      const data = await res.json();
 
-        router.push('/student-dashboard');
+      if (data.success) {
+        // SCENARIO 1: PAID (Redirect to Swychr)
+        if (data.paymentUrl) {
+          trackConversion('AddToCart', amount); // Track checkout initiation
+          window.location.href = data.paymentUrl; // Redirect to Payment Gateway
+        } 
+        // SCENARIO 2: FREE TRIAL (Direct Success)
+        else {
+          trackConversion('Lead'); // Track trial as lead
+          alert("Trial Booked Successfully!");
+          router.push('/student-dashboard');
+        }
       } else {
-        alert("Booking Failed.");
+        alert("Booking Failed: " + (data.error || "Unknown Error"));
+        setProcessing(false);
       }
+
     } catch (error) {
       console.error(error);
-      alert("An error occurred.");
+      alert("Network error. Please try again.");
+      setProcessing(false);
     }
   };
 
-  // --- PAYSTACK CONFIG ---
-  const hourlyPayProps = {
-    email: "student@platform.com",
-    amount: teacher ? teacher.hourlyRate * 100 : 0,
-    publicKey,
-    currency: 'USD',
-    text: "Pay Now",
-    onSuccess: handlePaidSuccess,
-    onClose: () => alert("Payment cancelled"),
-  };
-
-  const coursePayProps = {
-    email: "student@platform.com",
-    amount: selectedCourse ? selectedCourse.price * 100 : 0,
-    publicKey,
-    currency: 'USD',
-    text: `Pay $${selectedCourse?.price?.toLocaleString()}`,
-    onSuccess: handleCourseSuccess,
-    onClose: () => alert("Payment cancelled"),
-  };
-
-  if (!teacher) return <div className="p-20 text-center text-blue-600 font-bold">Loading Teacher Profile...</div>;
+  if (!teacher) return <div className="min-h-screen flex items-center justify-center text-blue-600 font-bold"><Loader2 className="animate-spin mr-2"/> Loading Profile...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -196,10 +166,14 @@ export default function HirePage() {
                     <li className="flex gap-2"><CheckCircle2 size={16}/> Access to class materials</li>
                   </ul>
                 </div>
-                <div className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-gray-800 transition text-center cursor-pointer shadow-lg shadow-gray-900/20">
-                  {/* @ts-ignore */}
-                  <PaystackButton {...hourlyPayProps} className="w-full h-full" />
-                </div>
+                
+                <button 
+                  onClick={() => handlePayment(teacher.hourlyRate, 'paid')}
+                  disabled={processing}
+                  className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-gray-800 transition shadow-lg shadow-gray-900/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {processing ? <Loader2 className="animate-spin"/> : `Pay $${teacher.hourlyRate} with Swychr`}
+                </button>
               </div>
             )}
 
@@ -232,16 +206,13 @@ export default function HirePage() {
                       ))}
                     </div>
 
-                    {selectedCourse ? (
-                      <div className="w-full bg-purple-600 text-white font-bold py-4 rounded-xl hover:bg-purple-700 transition text-center cursor-pointer shadow-lg shadow-purple-600/20">
-                        {/* @ts-ignore */}
-                        <PaystackButton {...coursePayProps} className="w-full h-full" />
-                      </div>
-                    ) : (
-                      <button disabled className="w-full bg-gray-200 text-gray-400 font-bold py-4 rounded-xl cursor-not-allowed">
-                        Select a course above
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => handlePayment(selectedCourse.price, 'course', selectedCourse.id)}
+                      disabled={!selectedCourse || processing}
+                      className="w-full bg-purple-600 text-white font-bold py-4 rounded-xl hover:bg-purple-700 transition shadow-lg shadow-purple-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {processing ? <Loader2 className="animate-spin"/> : selectedCourse ? `Enroll for $${selectedCourse.price}` : 'Select a course above'}
+                    </button>
                   </>
                 )}
               </div>
@@ -270,10 +241,11 @@ export default function HirePage() {
                 </div>
 
                 <button 
-                  onClick={handleTrialSubmit}
-                  className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20"
+                  onClick={() => handlePayment(0, 'trial')}
+                  disabled={processing}
+                  className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Confirm Free Trial
+                  {processing ? <Loader2 className="animate-spin"/> : "Confirm Free Trial"}
                 </button>
               </div>
             )}
