@@ -24,6 +24,10 @@ model Teacher {
   hasOnboarded Boolean   @default(false)
   rating       Float     @default(5.0)
   sales        Int       @default(0)
+
+   // NEW: Verification Fields
+  verificationDocs   String?   // URL to ID Card/Certificate
+  verificationStatus String    @default("none") // "none", "pending", "verified", "rejected"
   
   // Ads & Plans
   plan         String    @default("free") // "free", "bronze", "silver", "gold"

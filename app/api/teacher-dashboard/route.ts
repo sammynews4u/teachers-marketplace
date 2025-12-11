@@ -28,21 +28,27 @@ export async function POST(req: Request) {
   }
 }
 
-// PUT: Update Teacher Profile (Includes Onboarding Fix)
+// PUT: Update Teacher Profile
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, name, subject, hourlyRate, hasOnboarded } = body;
+    const { id, name, subject, hourlyRate, hasOnboarded, image, verificationDocs } = body;
 
-    // Create an object with only the fields that are present
     const dataToUpdate: any = {};
     if (name) dataToUpdate.name = name;
     if (subject) dataToUpdate.subject = subject;
     if (hourlyRate) dataToUpdate.hourlyRate = parseInt(hourlyRate);
+    if (image) dataToUpdate.image = image;
     
-    // Explicitly check for boolean to allow 'false'
+    // Onboarding Status
     if (hasOnboarded === true || hasOnboarded === false) {
       dataToUpdate.hasOnboarded = hasOnboarded;
+    }
+
+    // Verification Logic
+    if (verificationDocs) {
+      dataToUpdate.verificationDocs = verificationDocs;
+      dataToUpdate.verificationStatus = "pending"; // Auto-set to pending
     }
 
     const updated = await prisma.teacher.update({
