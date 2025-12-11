@@ -5,18 +5,12 @@ import ChatWindow from '../../components/ChatWindow';
 import UploadButton from '../../components/UploadButton'; 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { trackConversion } from '../../lib/analytics';
-import dynamic from 'next/dynamic';
+import { trackConversion } from '../../lib/analytics'; // Ensure lib/analytics.ts exists!
 import { 
   Users, DollarSign, Calendar, Edit2, 
   Clock, MessageSquare, Star, Video, Plus, Trash2, 
-  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone, Wallet
+  CheckCircle2, ShieldCheck, ArrowRight, Crown, Rocket, Zap, Megaphone, Wallet, Loader2
 } from 'lucide-react';
-
-const PaystackButton = dynamic(
-  () => import('react-paystack').then((mod) => mod.PaystackButton),
-  { ssr: false }
-);
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -45,8 +39,7 @@ export default function TeacherDashboard() {
     title: '', description: '', price: '', startDate: '', endDate: '', schedule: '', classroomUrl: ''
   });
   const [showCourseForm, setShowCourseForm] = useState(false);
-
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_test_1a823085e1393c55ce245b02feb6a316e6c6ad49';
+  const [processingPackage, setProcessingPackage] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -73,7 +66,7 @@ export default function TeacherDashboard() {
       .then(res => res.json())
       .then(data => setWallet(data));
 
-    // 4. Fetch Admin Packages (NEW)
+    // 4. Fetch Admin Packages
     fetch('/api/public/packages')
       .then(res => res.json())
       .then(data => {
@@ -127,15 +120,33 @@ export default function TeacherDashboard() {
     fetch(`/api/courses?teacherId=${teacher.id}`).then(r => r.json()).then(setCourses);
   };
 
-  const handlePackageSuccess = async (reference: any, plan: string, amount: number) => {
-    const res = await fetch('/api/packages/purchase', {
-      method: 'POST', body: JSON.stringify({ teacherId: teacher.id, plan, amount, reference: reference.reference }), headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (res.ok) { 
-      trackConversion('Purchase', amount);
-      alert(`Success! You are now on the ${plan} plan.`); 
-      window.location.reload(); 
+  // --- NEW: Handle Package Purchase via AccountPe ---
+  const handleBuyPackage = async (planName: string, price: number) => {
+    setProcessingPackage(true);
+    try {
+      const res = await fetch('/api/packages/purchase', {
+        method: 'POST', 
+        body: JSON.stringify({ 
+            teacherId: teacher.id, 
+            plan: planName.toLowerCase(), 
+            amount: price, 
+            reference: `PKG-${Date.now()}` 
+        }), 
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const data = await res.json();
+
+      if (data.success && data.paymentUrl) {
+         trackConversion('AddToCart', price);
+         window.location.href = data.paymentUrl; // Redirect to Gateway
+      } else {
+         alert("Payment Failed");
+         setProcessingPackage(false);
+      }
+    } catch(e) { 
+        alert("Error connecting to payment gateway");
+        setProcessingPackage(false);
     }
   };
 
@@ -162,9 +173,9 @@ export default function TeacherDashboard() {
 
   const getButtonStyle = (name: string) => {
     const lower = name.toLowerCase();
-    if (lower.includes('gold')) return 'bg-yellow-500 text-white';
-    if (lower.includes('silver')) return 'bg-gray-700 text-white';
-    return 'bg-orange-500 text-white';
+    if (lower.includes('gold')) return 'bg-yellow-500 text-white hover:bg-yellow-600';
+    if (lower.includes('silver')) return 'bg-gray-700 text-white hover:bg-gray-800';
+    return 'bg-orange-500 text-white hover:bg-orange-600';
   };
 
   if (!mounted) return null;
@@ -194,8 +205,6 @@ export default function TeacherDashboard() {
       )}
       
       <div className="pt-8 pb-12 px-4 max-w-7xl mx-auto">
-        
-        {/* HEADER */}
         <div className="flex justify-between items-end mb-10">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -259,6 +268,7 @@ export default function TeacherDashboard() {
                              <p className="font-bold">{b.student?.name}</p>
                              <p className="text-xs text-gray-500 flex items-center gap-1">
                                {b.type === 'trial' ? 'Free Trial' : 'Paid Student'}
+                               {b.scheduledAt && <span className="text-orange-500 font-bold ml-1">• {new Date(b.scheduledAt).toLocaleDateString()}</span>}
                              </p>
                            </div>
                          </div>
@@ -277,7 +287,7 @@ export default function TeacherDashboard() {
                 
                 {showCourseForm && (
                   <form onSubmit={handleCreateCourse} className="bg-white p-6 rounded-xl shadow-lg border space-y-4 relative">
-                    <button type="button" onClick={() => setShowCourseForm(false)} className="absolute top-4 right-4 text-gray-400 font-bold">Cancel</button>
+                    <button type="button" onClick={() => setShowCourseForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold">Cancel</button>
                     <h3 className="font-bold text-lg">New Language Course</h3>
                     <input aria-label="Title" required placeholder="Title (e.g. Beginners French)" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, title: e.target.value})} />
                     <textarea aria-label="Desc" required placeholder="Description" className="w-full border p-3 rounded-lg h-24" onChange={e => setNewCourse({...newCourse, description: e.target.value})} />
@@ -308,7 +318,7 @@ export default function TeacherDashboard() {
               </div>
             )}
 
-            {/* TAB 3: MESSAGES */}
+            {/* TAB 3: MESSAGES (CHAT) */}
             {activeTab === 'messages' && (
               <div className="bg-white rounded-2xl shadow-sm border p-1 animate-in fade-in h-[600px]">
                 <ChatWindow myId={teacher.id} myType="teacher" />
@@ -356,7 +366,6 @@ export default function TeacherDashboard() {
                 {packages.length === 0 ? (
                   <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
                     <p className="text-gray-500">No ad packages available at the moment.</p>
-                    <p className="text-xs text-gray-400">Please check back later or contact admin.</p>
                   </div>
                 ) : (
                   <div className="grid md:grid-cols-3 gap-4">
@@ -373,16 +382,14 @@ export default function TeacherDashboard() {
                            ))}
                         </div>
 
-                        {/* @ts-ignore */}
-                        <PaystackButton 
-                          email={teacher.email} 
-                          amount={pkg.price * 100} // Convert to cents/kobo
-                          currency="USD" 
-                          publicKey={publicKey} 
-                          text={`Buy ${pkg.name}`} 
-                          onSuccess={(ref: any) => handlePackageSuccess(ref, pkg.name.toLowerCase(), pkg.price)} 
-                          className={`w-full py-3 rounded-lg font-bold transition shadow-sm ${getButtonStyle(pkg.name)}`}
-                        />
+                        {/* REPLACED PAYSTACK WITH ACCOUNTPE HANDLER */}
+                        <button 
+                          onClick={() => handleBuyPackage(pkg.name.toLowerCase(), pkg.price)}
+                          disabled={processingPackage}
+                          className={`w-full py-3 rounded-lg font-bold transition shadow-sm ${getButtonStyle(pkg.name)} flex justify-center items-center gap-2`}
+                        >
+                          {processingPackage ? <Loader2 className="animate-spin"/> : `Buy ${pkg.name}`}
+                        </button>
                       </div>
                     ))}
                   </div>
