@@ -5,91 +5,80 @@ export const dynamic = 'force-dynamic';
 
 const prisma = new PrismaClient();
 
+// GET: Fetch Everything + Deep Course Content
 export async function GET() {
-  console.log("Admin API: Starting fetch...");
-
   try {
-    // Run all queries in parallel for speed.
-    const results = await Promise.allSettled([
-      prisma.teacher.findMany({ orderBy: { createdAt: 'desc' }, include: { bookings: true } }),
-      prisma.student.findMany({ orderBy: { createdAt: 'desc' } }),
-      prisma.page.findMany(),
-      prisma.package.findMany({ orderBy: { price: 'asc' } }),
-      prisma.fAQ.findMany({ orderBy: { createdAt: 'asc' } }),
-      prisma.booking.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-          teacher: { select: { name: true, email: true } },
-          student: { select: { name: true, email: true } },
-          course: { select: { title: true } }
-        }
-      }),
-      // Payouts (Added to parallel fetch)
-      prisma.payout.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: { teacher: { select: { name: true, email: true } } }
-      }),
-      // Settings
-      prisma.systemSettings.findFirst()
-    ]);
-
-    // Extract results (Default to empty array if failed)
-    const teachers = results[0].status === 'fulfilled' ? results[0].value : [];
-    const students = results[1].status === 'fulfilled' ? results[1].value : [];
-    const pages = results[2].status === 'fulfilled' ? results[2].value : [];
-    const packages = results[3].status === 'fulfilled' ? results[3].value : [];
-    const faqs = results[4].status === 'fulfilled' ? results[4].value : [];
-    const bookings = results[5].status === 'fulfilled' ? results[5].value : [];
-    const payouts = results[6].status === 'fulfilled' ? results[6].value : []; // <--- Extracted Payouts
-    let settings = results[7].status === 'fulfilled' ? results[7].value : null;
-
-    // Log errors if any
-    results.forEach((r, i) => {
-      if (r.status === 'rejected') console.error(`Query ${i} failed:`, r.reason);
+    const teachers = await prisma.teacher.findMany({ orderBy: { createdAt: 'desc' }, include: { bookings: true } });
+    const students = await prisma.student.findMany({ orderBy: { createdAt: 'desc' } });
+    const pages = await prisma.page.findMany();
+    const packages = await prisma.package.findMany({ orderBy: { price: 'asc' } });
+    const faqs = await prisma.fAQ.findMany({ orderBy: { createdAt: 'asc' } });
+    
+    // --- UPDATED: Fetch Deep Course Content (Modules & Lessons) ---
+    const courses = await prisma.course.findMany({ 
+        orderBy: { createdAt: 'desc' }, 
+        include: { 
+            teacher: { select: { name: true, email: true } },
+            modules: { 
+                orderBy: { order: 'asc' },
+                include: { lessons: true } // Fetch lessons to view content
+            }
+        } 
+    });
+    
+    const reviews = await prisma.review.findMany({ 
+        orderBy: { createdAt: 'desc' }, 
+        include: { teacher: { select: { name: true } }, student: { select: { name: true } } } 
     });
 
-    // Handle Settings (Create Default if missing)
-    if (!settings) {
-      try {
-        settings = await prisma.systemSettings.create({
-          data: { commissionRate: 10, supportEmail: "support@platform.com" }
-        });
-      } catch (e) {
-        console.error("Failed to create default settings:", e);
-        settings = { commissionRate: 10, maintenanceMode: false, supportEmail: "error@setup.com" }; 
+    const bookings = await prisma.booking.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        teacher: { select: { name: true, email: true } },
+        student: { select: { name: true, email: true } },
+        course: { select: { title: true } }
       }
+    });
+
+    const payouts = await prisma.payout.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: { teacher: { select: { name: true, email: true } } }
+    });
+
+    let settings = await prisma.systemSettings.findFirst();
+    if (!settings) {
+      settings = await prisma.systemSettings.create({
+        data: { commissionRate: 10, supportEmail: "support@platform.com" }
+      });
     }
 
-    // Content Moderation (Courses & Reviews) - Fetched safely
-    const courses = await prisma.course.findMany({ orderBy: { createdAt: 'desc' }, include: { teacher: { select: { name: true } } } }).catch(() => []);
-    const reviews = await prisma.review.findMany({ orderBy: { createdAt: 'desc' }, include: { teacher: { select: { name: true } }, student: { select: { name: true } } } }).catch(() => []);
-
-    // Calculate Stats
     let totalRevenue = 0;
     let platformProfit = 0;
     
-    // @ts-ignore
     bookings.forEach(b => {
       if(b.type !== 'trial' && !b.isRefunded) {
         totalRevenue += b.amount;
-        // @ts-ignore
         platformProfit += (b.amount * (settings?.commissionRate || 10)) / 100;
       }
     });
 
     return NextResponse.json({ 
-      teachers, students, pages, packages, faqs, bookings, 
-      payouts, // <--- ADDED PAYOUTS HERE (Crucial Step)
-      courses, reviews, settings, totalRevenue, platformProfit 
+      teachers: teachers || [], 
+      students: students || [], 
+      pages: pages || [], 
+      packages: packages || [], 
+      faqs: faqs || [],
+      bookings: bookings || [],
+      payouts: payouts || [],
+      courses: courses || [], 
+      reviews: reviews || [], 
+      settings,
+      totalRevenue,
+      platformProfit
     });
 
   } catch (error) {
-    console.error("CRITICAL ADMIN API ERROR:", error);
-    // Return empty structure instead of 500 error so dashboard doesn't break
-    return NextResponse.json({ 
-      teachers: [], students: [], pages: [], packages: [], faqs: [], bookings: [], 
-      payouts: [], courses: [], reviews: [], settings: {}, totalRevenue: 0 
-    });
+    return NextResponse.json({ error: "Failed to load data" }, { status: 500 });
   }
 }
 
@@ -125,10 +114,7 @@ export async function PUT(req: Request) {
       else await prisma.fAQ.create({ data });
     }
 
-    // 6. Approve Payout
-    if (action === 'approve_payout') {
-      await prisma.payout.update({ where: { id }, data: { status: 'paid' } });
-    }
+    if (action === 'approve_payout') await prisma.payout.update({ where: { id }, data: { status: 'paid' } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -152,11 +138,16 @@ export async function DELETE(req: Request) {
     }
     else if (type === 'package') await prisma.package.delete({ where: { id } });
     else if (type === 'faq') await prisma.fAQ.delete({ where: { id } });
+    
     else if (type === 'course') {
+      // Deep delete: Modules -> Lessons -> Resources are handled by Cascade in schema usually, 
+      // but let's be safe and delete main course which cascades.
       await prisma.booking.deleteMany({ where: { courseId: id } });
       await prisma.course.delete({ where: { id } });
     }
-    else if (type === 'review') await prisma.review.delete({ where: { id } });
+    else if (type === 'review') {
+      await prisma.review.delete({ where: { id } });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

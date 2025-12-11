@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { 
   Trash2, Edit, Users, DollarSign, Lock, ArrowRight, Save, Plus, 
   CheckCircle2, Package as PackageIcon, FileText, HelpCircle, TrendingUp, 
-  BarChart3, PieChart as PieIcon, Settings, Ban, Undo2, Star, BookOpen, Megaphone
+  BarChart3, PieChart as PieIcon, Settings, Ban, Undo2, Star, BookOpen, Megaphone, Eye, X
 } from 'lucide-react';
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -33,6 +33,9 @@ export default function AdminDashboard() {
   const [editingFAQ, setEditingFAQ] = useState<any>(null);
   const [showFAQForm, setShowFAQForm] = useState(false);
   const [settingsForm, setSettingsForm] = useState({ commissionRate: 10, supportEmail: '', maintenanceMode: false });
+
+  // COURSE VIEW STATE
+  const [viewingCourse, setViewingCourse] = useState<any>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -98,8 +101,44 @@ export default function AdminDashboard() {
   const COLORS = ['#94a3b8', '#fb923c', '#60a5fa', '#facc15'];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       <Navbar />
+      
+      {/* COURSE PREVIEW MODAL */}
+      {viewingCourse && (
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-2xl h-[80vh] overflow-hidden flex flex-col">
+                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                    <h3 className="font-bold text-lg">{viewingCourse.title}</h3>
+                    <button onClick={() => setViewingCourse(null)}><X className="text-gray-500 hover:text-red-500"/></button>
+                </div>
+                <div className="p-6 overflow-y-auto flex-1">
+                    <p className="text-gray-500 mb-4 text-sm">{viewingCourse.description}</p>
+                    <h4 className="font-bold mb-2">Curriculum</h4>
+                    {viewingCourse.modules?.length === 0 && <p className="text-gray-400 text-sm">No content uploaded yet.</p>}
+                    <div className="space-y-4">
+                        {viewingCourse.modules?.map((mod: any) => (
+                            <div key={mod.id} className="border rounded-xl p-4">
+                                <h5 className="font-bold text-blue-600 mb-2">{mod.title}</h5>
+                                <ul className="space-y-2">
+                                    {mod.lessons?.map((les: any) => (
+                                        <li key={les.id} className="text-sm flex items-center gap-2 text-gray-700">
+                                            <FileText size={14} className="text-gray-400"/> {les.title}
+                                        </li>
+                                    ))}
+                                    {mod.lessons.length === 0 && <li className="text-xs text-gray-400">No lessons</li>}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="p-4 border-t bg-gray-50 text-right">
+                    <button onClick={() => setViewingCourse(null)} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold">Close</button>
+                </div>
+            </div>
+        </div>
+      )}
+
       <div className="pt-24 pb-12 px-4 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
           <h1 className="text-3xl font-bold">Admin Control</h1>
@@ -151,7 +190,7 @@ export default function AdminDashboard() {
 
         {/* TEACHERS */}
         {activeTab === 'teachers' && (
-          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Name</th><th className="p-4">Status</th><th className="p-4">Verify</th><th className="p-4">Actions</th></tr></thead><tbody>{data.teachers.map((t: any) => (<tr key={t.id} className="hover:bg-gray-50 border-b"><td className="p-4 font-bold">{t.name}<br/><span className="text-xs text-gray-500 font-normal">{t.email}</span></td><td className="p-4">{t.isSuspended ? <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Suspended</span> : <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>}</td><td className="p-4"><button onClick={()=>handleVerify(t)} className={`px-2 py-1 rounded border text-xs font-bold ${t.isVerified ? 'bg-blue-50 text-blue-600' : 'bg-gray-100'}`}>{t.isVerified ? 'Ok' : 'Verify'}</button></td><td className="p-4 flex gap-2"><button onClick={()=>handleSuspend(t.id, 'teacher', t.isSuspended)} title="Suspend" className="text-orange-500 bg-orange-50 p-2 rounded"><Ban size={16}/></button><button onClick={()=>handleDelete(t.id, 'teacher')} className="text-red-500 bg-red-50 p-2 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
+          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Name</th><th className="p-4">Plan</th><th className="p-4">Status</th><th className="p-4">Verify</th><th className="p-4">Actions</th></tr></thead><tbody>{data.teachers.map((t: any) => (<tr key={t.id} className="hover:bg-gray-50 border-b"><td className="p-4 font-bold">{t.name}<br/><span className="text-xs text-gray-500 font-normal">{t.email}</span></td><td className="p-4">{t.plan || 'Free'}</td><td className="p-4">{t.isSuspended ? <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Suspended</span> : <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>}</td><td className="p-4 flex gap-2"><button onClick={()=>handleVerify(t)} className={`px-2 py-1 rounded border text-xs font-bold ${t.isVerified ? 'bg-blue-50 text-blue-600' : 'bg-gray-100'}`}>{t.isVerified ? 'Ok' : 'Verify'}</button><button onClick={()=>handleSuspend(t.id, 'teacher', t.isSuspended)} title="Suspend" className="text-orange-500 bg-orange-50 p-2 rounded"><Ban size={16}/></button><button onClick={()=>handleDelete(t.id, 'teacher')} className="text-red-500 bg-red-50 p-2 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
         )}
         
         {/* STUDENTS */}
@@ -161,7 +200,7 @@ export default function AdminDashboard() {
 
         {/* COURSES (NEW) */}
         {activeTab === 'courses' && (
-          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Course</th><th className="p-4">Teacher</th><th className="p-4">Price</th><th className="p-4">Action</th></tr></thead><tbody>{data.courses.length===0 && <tr><td colSpan={4} className="p-4 text-center">No courses.</td></tr>}{data.courses.map((c: any) => (<tr key={c.id} className="hover:bg-gray-50 border-b"><td className="p-4 font-bold">{c.title}</td><td className="p-4 text-sm">{c.teacher?.name}</td><td className="p-4 text-green-600 font-bold">${c.price}</td><td className="p-4"><button onClick={()=>handleDelete(c.id, 'course')} className="text-red-500 p-2 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
+          <div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-100 border-b"><tr><th className="p-4">Course</th><th className="p-4">Teacher</th><th className="p-4">Price</th><th className="p-4">Action</th></tr></thead><tbody>{data.courses.length===0 && <tr><td colSpan={4} className="p-4 text-center">No courses.</td></tr>}{data.courses.map((c: any) => (<tr key={c.id} className="hover:bg-gray-50 border-b"><td className="p-4 font-bold">{c.title}</td><td className="p-4 text-sm">{c.teacher?.name}</td><td className="p-4 text-green-600 font-bold">${c.price}</td><td className="p-4 flex gap-2"><button onClick={() => setViewingCourse(c)} className="bg-blue-50 text-blue-600 p-2 rounded"><Eye size={16}/></button><button onClick={()=>handleDelete(c.id, 'course')} className="text-red-500 p-2 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
         )}
 
         {/* REVIEWS (NEW) */}
