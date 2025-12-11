@@ -64,9 +64,10 @@ model Student {
   bookings      Booking[]
   reviews       Review[]
   conversations Conversation[]
+  progress      UserProgress[] // <--- LMS Progress
 }
 
-// --- COMMERCE & CONTENT ---
+// --- LMS & CONTENT ---
 
 model Course {
   id           String    @id @default(uuid())
@@ -76,13 +77,65 @@ model Course {
   startDate    DateTime
   endDate      DateTime
   schedule     String    
-  classroomUrl String?   // Link to Google Classroom/Zoom
+  classroomUrl String?   
+  image        String?   
+  published    Boolean   @default(false)
   createdAt    DateTime  @default(now())
 
   teacherId    String
   teacher      Teacher   @relation(fields: [teacherId], references: [id])
   bookings     Booking[]
+  
+  // LMS Structure
+  modules      Module[]
 }
+
+model Module {
+  id        String   @id @default(uuid())
+  title     String
+  order     Int      
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+}
+
+model Lesson {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  videoUrl    String?  
+  content     String?  
+  order       Int
+  isFree      Boolean  @default(false) 
+  
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  
+  resources   Resource[]
+  userProgress UserProgress[]
+}
+
+model Resource {
+  id        String   @id @default(uuid())
+  name      String
+  url       String   
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model UserProgress {
+  id        String   @id @default(uuid())
+  studentId String
+  lessonId  String
+  isCompleted Boolean @default(false)
+
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonId])
+}
+
+// --- COMMERCE ---
 
 model Booking {
   id          String   @id @default(uuid())

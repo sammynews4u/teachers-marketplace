@@ -125,9 +125,11 @@ export default function TeacherDashboard() {
     const res = await fetch('/api/packages/purchase', {
       method: 'POST', body: JSON.stringify({ teacherId: teacher.id, plan, amount, reference: reference.reference }), headers: { 'Content-Type': 'application/json' }
     });
+    
+    // Fixed Block
     if (res.ok) { 
       trackConversion('Purchase', amount);
-      alert("Success!"); 
+      alert("Success! Your profile is now boosted."); 
       window.location.reload(); 
     }
   };
@@ -194,6 +196,8 @@ export default function TeacherDashboard() {
       )}
       
       <div className="pt-8 pb-12 px-4 max-w-7xl mx-auto">
+        
+        {/* HEADER */}
         <div className="flex justify-between items-end mb-10">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -215,7 +219,10 @@ export default function TeacherDashboard() {
                <img src={teacher.image} className="relative w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4 mt-8"/>
                {isEditing ? (
                   <div className="space-y-3">
-                    <div className="flex justify-center"><UploadButton onUpload={(url) => setTeacher({...teacher, image: url})} /></div>
+                    {/* NEW: IMAGE UPLOAD BUTTON */}
+                    <div className="flex justify-center">
+                        <UploadButton onUpload={(url) => setTeacher({...teacher, image: url})} />
+                    </div>
                     <input aria-label="Name" value={teacher.name} onChange={e => setTeacher({...teacher, name: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input aria-label="Subject" value={teacher.subject} onChange={e => setTeacher({...teacher, subject: e.target.value})} className="border p-2 w-full rounded text-sm"/>
                     <input aria-label="Rate" type="number" value={teacher.hourlyRate} onChange={e => setTeacher({...teacher, hourlyRate: e.target.value})} className="border p-2 w-full rounded text-sm"/>
@@ -324,7 +331,9 @@ export default function TeacherDashboard() {
                   <h2 className="text-5xl font-bold">${wallet.availableBalance?.toLocaleString()}</h2>
                   <p className="mt-4 text-sm opacity-80">Total Lifetime Earnings: ${wallet.totalEarnings?.toLocaleString()}</p>
                 </div>
+
                 <div className="grid md:grid-cols-2 gap-8">
+                  {/* Withdrawal Form */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg mb-4 text-gray-800">Request Withdrawal</h3>
                     <div className="space-y-4">
@@ -335,6 +344,8 @@ export default function TeacherDashboard() {
                       <button onClick={handleWithdraw} className="w-full bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-gray-800">Withdraw Funds</button>
                     </div>
                   </div>
+
+                  {/* History */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg mb-4 text-gray-800">Payout History</h3>
                     <div className="space-y-3 max-h-80 overflow-y-auto">

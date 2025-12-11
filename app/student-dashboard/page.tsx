@@ -1,225 +1,226 @@
-"use client";
+{/* UPGRADE ALERT */}
+  {teacher.plan === 'free' && (
+    <div onClick={() => setActiveTab('boost')} className="bg-gradient-to-r from-orange-500 to-red-600 text-white p-3 text-center cursor-pointer hover:opacity-90 transition shadow-md group">
+      <p className="font-bold text-sm flex items-center justify-center gap-2 animate-pulse"><Megaphone size={20} /> UPGRADE TO GET MORE STUDENTS! <span className="underline">Boost Now</span><ArrowRight size={18} /></p>
+    </div>
+  )}
 
-import Navbar from '../../components/Navbar';
-import ChatWindow from '../../components/ChatWindow'; // Import Chat
-import UploadButton from '../../components/UploadButton'; // Import Image Upload
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  BookOpen, Camera, Edit2, Video, MessageSquare, Award, Zap, Star 
-} from 'lucide-react';
-
-export default function StudentDashboard() {
-  const router = useRouter();
-  const [student, setStudent] = useState<any>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [totalSpent, setTotalSpent] = useState(0);
-  
-  // TABS STATE
-  const [activeTab, setActiveTab] = useState('instructors'); // 'instructors' or 'messages'
-
-  // REVIEW STATE
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewTarget, setReviewTarget] = useState<any>(null); // Teacher ID to rate
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
-
-  useEffect(() => {
-    const id = localStorage.getItem('studentId');
-    if (!id) { router.push('/student-login'); return; }
-
-    fetch('/api/student-dashboard', {
-      method: 'POST',
-      body: JSON.stringify({ studentId: id }),
-      headers: { 'Content-Type': 'application/json' }
-    })
-    .then(res => res.json())
-    .then(data => {
-      setStudent(data);
-      if(data.bookings) {
-        const total = data.bookings.reduce((acc: number, curr: any) => acc + curr.amount, 0);
-        setTotalSpent(total);
-      }
-    });
-  }, []);
-
-  // --- HANDLERS ---
-  
-  // Initialize Chat
-  const handleStartChat = async (teacherId: string) => {
-    if (!confirm("Start a chat with this instructor?")) return;
-    
-    await fetch('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        senderId: student.id,
-        senderType: 'student',
-        receiverId: teacherId,
-        content: "Hi! I just joined your class."
-      }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    setActiveTab('messages');
-  };
-
-  const handleUpdate = async () => {
-    await fetch('/api/student-dashboard', {
-      method: 'PUT',
-      body: JSON.stringify({ id: student.id, name: student.name, image: student.image }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    setIsEditing(false);
-    alert("Profile Updated!");
-  };
-
-  const submitReview = async () => {
-    const res = await fetch('/api/reviews', {
-      method: 'POST',
-      body: JSON.stringify({
-        studentId: student.id,
-        teacherId: reviewTarget,
-        rating,
-        comment
-      }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if(res.ok) {
-        alert("Review Submitted! Thank you.");
-        setShowReviewModal(false);
-        setComment('');
-    }
-  };
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
-  };
-
-  if (!student) return <div className="p-20 text-center text-blue-600 font-bold">Loading...</div>;
-
-  return (
-    <div className="min-h-screen bg-gray-50 relative">
-      <Navbar />
-
-      {/* --- REVIEW MODAL --- */}
-      {showReviewModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm text-center animate-in zoom-in-95">
-            <h3 className="font-bold text-xl mb-4">Rate this Teacher</h3>
-            <div className="flex justify-center gap-2 mb-4">
-              {[1,2,3,4,5].map(star => (
-                <button key={star} onClick={() => setRating(star)} className={`transition ${rating >= star ? 'text-yellow-400' : 'text-gray-300'}`}>
-                  <Star size={32} fill={rating >= star ? "currentColor" : "none"} />
-                </button>
-              ))}
+  {/* ONBOARDING MODAL */}
+  {showOnboarding && (
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="h-32 bg-blue-600 flex items-center justify-center"><ShieldCheck className="text-white w-16 h-16" /></div>
+        <div className="p-8">
+          {onboardingStep === 1 && (
+            <div className="text-center space-y-4">
+              <h2 className="text-2xl font-bold">Welcome Teacher! 👋</h2>
+              <p className="text-gray-500">Let's set you up to teach languages effectively.</p>
+              <button onClick={() => setOnboardingStep(2)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Start Tour</button>
             </div>
-            <textarea 
-              placeholder="Write your experience..." 
-              className="w-full border p-3 rounded-xl mb-4 h-24"
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <button onClick={submitReview} className="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold">Submit</button>
-              <button onClick={() => setShowReviewModal(false)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-bold">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="pt-24 pb-12 px-4 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
-          <div><p className="text-gray-500 font-medium">{getGreeting()},</p><h1 className="text-4xl font-bold text-gray-900">{student.name} 🎓</h1></div>
-          <button onClick={() => { localStorage.removeItem('studentId'); router.push('/'); }} className="text-red-500 font-medium hover:bg-red-50 px-4 py-2 rounded-lg transition">Log Out</button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* LEFT: Profile & Stats */}
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-blue-600 to-cyan-500"></div>
-              <div className="relative mt-10">
-                <img src={student.image || `https://api.dicebear.com/7.x/initials/svg?seed=${student.name}`} className="w-28 h-28 mx-auto mb-4 rounded-full object-cover border-4 border-white shadow-lg bg-white" />
-                
-                {isEditing ? (
-                  <div className="space-y-3 px-4">
-                    {/* NEW: IMAGE UPLOAD BUTTON */}
-                    <div className="flex justify-center">
-                        <UploadButton onUpload={(url) => setStudent({...student, image: url})} />
-                    </div>
-                    <input value={student.name} onChange={e => setStudent({...student, name: e.target.value})} className="w-full border p-2 rounded-lg text-center font-bold"/>
-                    <button onClick={handleUpdate} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold w-full">Save</button>
-                  </div>
-                ) : (
-                  <><h2 className="text-xl font-bold">{student.name}</h2><p className="text-gray-500 text-sm mb-4">{student.email}</p><button onClick={() => setIsEditing(true)} className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-blue-600 transition"><Edit2 size={14} /> Edit Profile</button></>
-                )}
+          )}
+          {onboardingStep === 2 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-center">Success Tips 🚀</h2>
+              <div className="space-y-4">
+                <div className="flex gap-4"><div className="bg-green-100 p-3 rounded"><CheckCircle2 className="text-green-600"/></div><div><h4 className="font-bold">Get Verified</h4><p className="text-sm text-gray-500">Verified tutors get 3x more students.</p></div></div>
               </div>
+              <button onClick={() => setOnboardingStep(3)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Next</button>
             </div>
-            
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Zap className="text-yellow-500" size={20} /> Your Progress</h3>
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <div className="flex items-center gap-3"><div className="bg-blue-100 text-blue-600 p-2 rounded-lg"><BookOpen size={18} /></div><span className="text-sm font-medium">Teachers Hired</span></div>
-                        <span className="font-bold text-lg">{student.bookings?.length || 0}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <div className="flex items-center gap-3"><div className="bg-green-100 text-green-600 p-2 rounded-lg"><Award size={18} /></div><span className="text-sm font-medium">Invested</span></div>
-                        <span className="font-bold text-lg">${totalSpent.toLocaleString()}</span>
-                    </div>
-                </div>
+          )}
+          {onboardingStep === 3 && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-center">Terms</h2>
+              <div className="h-32 overflow-y-auto bg-gray-50 p-4 text-xs border"><p>1. Be professional.<br/>2. No-shows penalized.</p></div>
+              <button onClick={handleFinishOnboarding} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">I Agree & View Plans</button>
             </div>
-          </div>
-
-          {/* RIGHT: Content */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* TABS */}
-            <div className="flex gap-4 mb-4 bg-gray-200 p-1 rounded-2xl w-fit">
-              <button onClick={() => setActiveTab('instructors')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'instructors' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>My Instructors</button>
-              <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Messages</button>
-            </div>
-
-            {/* TAB 1: INSTRUCTORS */}
-            {activeTab === 'instructors' && (
-              <>
-                <div className="bg-gray-900 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden"><div className="relative z-10"><h3 className="text-2xl font-bold mb-2">Ready to learn?</h3><p className="text-gray-400 mb-6">You have access to expert teachers. Start a class now.</p><button onClick={() => router.push('/teachers')} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-blue-600/30">Find More Teachers</button></div><div className="absolute top-0 right-0 -mr-10 -mt-10 w-64 h-64 bg-gray-800 rounded-full opacity-50"></div></div>
-
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">My Instructors</h3>
-                  {(!student.bookings || student.bookings.length === 0) ? (
-                    <div className="bg-white p-10 text-center rounded-2xl border border-dashed border-gray-300"><p className="text-gray-500">You haven't hired anyone yet.</p></div>
-                  ) : (
-                    <div className="space-y-4">
-                      {student.bookings.map((booking: any) => (
-                        <div key={booking.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col sm:flex-row items-center gap-5">
-                          <img src={booking.teacher.image} className="w-16 h-16 rounded-full object-cover border-2 border-gray-100" />
-                          <div className="flex-1 text-center sm:text-left"><h4 className="text-lg font-bold text-gray-900">{booking.teacher.name}</h4><p className="text-blue-600 text-sm font-medium">{booking.teacher.subject}</p><p className="text-xs text-gray-400 mt-1">Hired on {new Date(booking.createdAt).toLocaleDateString()}</p></div>
-                          <div className="flex gap-2">
-                            <button onClick={() => handleStartChat(booking.teacher.id)} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl font-bold hover:bg-blue-100 transition"><MessageSquare size={18} /> Chat</button>
-                            <button onClick={() => { setReviewTarget(booking.teacher.id); setShowReviewModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-xl font-bold hover:bg-yellow-100 transition"><Star size={18} /> Rate</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* TAB 2: MESSAGES */}
-            {activeTab === 'messages' && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1 h-[600px]">
-                <ChatWindow myId={student.id} myType="student" />
-              </div>
-            )}
-
-          </div>
+          )}
         </div>
       </div>
     </div>
-  );
-}
+  )}
+  
+  <div className="pt-8 pb-12 px-4 max-w-7xl mx-auto">
+    <div className="flex justify-between items-end mb-10">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <p className="text-gray-500 font-medium">{getGreeting()},</p>
+          {teacher.plan === 'gold' && <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-yellow-300 flex items-center gap-1"><Crown size={12}/> GOLD</span>}
+          {teacher.plan === 'silver' && <span className="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-300 flex items-center gap-1"><ShieldCheck size={12}/> SILVER</span>}
+        </div>
+        <h1 className="text-4xl font-bold text-gray-900">{teacher.name} 👋</h1>
+      </div>
+      <button onClick={() => { localStorage.removeItem('teacherId'); router.push('/'); }} className="text-red-500 font-medium">Log Out</button>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      {/* LEFT: PROFILE & EARNINGS */}
+      <div className="space-y-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border text-center relative overflow-hidden">
+           <div className={`absolute top-0 left-0 w-full h-20 bg-gradient-to-r ${teacher.plan === 'gold' ? 'from-yellow-400 to-orange-500' : 'from-blue-600 to-purple-600'}`}></div>
+           <img src={teacher.image} className="relative w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-md mb-4 mt-8"/>
+           {isEditing ? (
+              <div className="space-y-3">
+                <div className="flex justify-center"><UploadButton onUpload={(url) => setTeacher({...teacher, image: url})} /></div>
+                <input aria-label="Name" value={teacher.name} onChange={e => setTeacher({...teacher, name: e.target.value})} className="border p-2 w-full rounded text-sm"/>
+                <input aria-label="Subject" value={teacher.subject} onChange={e => setTeacher({...teacher, subject: e.target.value})} className="border p-2 w-full rounded text-sm"/>
+                <input aria-label="Rate" type="number" value={teacher.hourlyRate} onChange={e => setTeacher({...teacher, hourlyRate: e.target.value})} className="border p-2 w-full rounded text-sm"/>
+                <button onClick={handleUpdateProfile} className="bg-green-600 text-white w-full py-2 rounded font-bold text-sm">Save</button>
+              </div>
+           ) : (
+              <>
+                <h2 className="text-xl font-bold">{teacher.name}</h2>
+                <p className="text-blue-600 font-medium text-sm">{teacher.subject}</p>
+                <p className="font-bold mt-2">${teacher.hourlyRate}/hr</p>
+                <button onClick={() => setIsEditing(true)} className="text-sm text-gray-400 mt-4 underline">Edit Profile</button>
+              </>
+           )}
+        </div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border"><p className="text-gray-500 text-xs font-bold uppercase">Earnings</p><p className="text-2xl font-bold text-green-600">${earnings.toLocaleString()}</p></div>
+      </div>
+
+      {/* RIGHT: CONTENT TABS */}
+      <div className="lg:col-span-2">
+        
+        {/* TAB BUTTONS */}
+        <div className="flex flex-wrap gap-4 mb-6 bg-gray-200 p-1 rounded-2xl w-fit">
+          <button onClick={() => setActiveTab('classroom')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'classroom' ? 'bg-white shadow' : 'text-gray-500'}`}>Classroom</button>
+          <button onClick={() => setActiveTab('courses')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'courses' ? 'bg-white shadow' : 'text-gray-500'}`}>My Courses</button>
+          <button onClick={() => setActiveTab('messages')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'messages' ? 'bg-white shadow' : 'text-gray-500'}`}>Messages</button>
+          <button onClick={() => setActiveTab('wallet')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'wallet' ? 'bg-white shadow text-green-700' : 'text-gray-500'}`}>💰 Wallet</button>
+          <button onClick={() => setActiveTab('boost')} className={`px-6 py-2 rounded-xl font-bold transition text-sm ${activeTab === 'boost' ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow' : 'text-gray-500'}`}>🚀 Boost</button>
+        </div>
+
+        {/* TAB 1: CLASSROOM */}
+        {activeTab === 'classroom' && (
+          <div className="bg-white rounded-2xl shadow-sm border p-6 animate-in fade-in">
+             <h3 className="font-bold text-lg mb-4">Students Enrolled</h3>
+             {teacher.bookings?.length === 0 ? <p className="text-gray-400">No students yet.</p> : (
+               <div className="divide-y">
+                 {teacher.bookings.map((b: any) => (
+                   <div key={b.id} className="py-4 flex justify-between items-center">
+                     <div className="flex gap-3 items-center">
+                       <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${b.student?.name}`} className="w-10 h-10 rounded-full"/>
+                       <div>
+                         <p className="font-bold">{b.student?.name}</p>
+                         <p className="text-xs text-gray-500 flex items-center gap-1">
+                           {b.type === 'trial' ? 'Free Trial' : 'Paid Student'}
+                           {b.scheduledAt && <span className="text-orange-500 font-bold ml-1">• {new Date(b.scheduledAt).toLocaleDateString()}</span>}
+                         </p>
+                       </div>
+                     </div>
+                     <button onClick={() => handleStartChat(b.student?.id)} aria-label="Chat" className="text-blue-600 bg-blue-50 p-2 rounded-lg hover:bg-blue-100 transition"><MessageSquare size={18}/></button>
+                   </div>
+                 ))}
+               </div>
+             )}
+          </div>
+        )}
+
+        {/* TAB 2: COURSES */}
+        {activeTab === 'courses' && (
+          <div className="space-y-6 animate-in fade-in">
+            {!showCourseForm && <button onClick={() => setShowCourseForm(true)} className="w-full py-6 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold hover:border-blue-500 flex justify-center items-center gap-2"><Plus size={20} /> Create New Cohort</button>}
+            
+            {showCourseForm && (
+              <form onSubmit={handleCreateCourse} className="bg-white p-6 rounded-xl shadow-lg border space-y-4 relative">
+                <button type="button" onClick={() => setShowCourseForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold">Cancel</button>
+                <h3 className="font-bold text-lg">New Language Course</h3>
+                <input aria-label="Title" required placeholder="Title (e.g. Beginners French)" className="w-full border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, title: e.target.value})} />
+                <textarea aria-label="Desc" required placeholder="Description" className="w-full border p-3 rounded-lg h-24" onChange={e => setNewCourse({...newCourse, description: e.target.value})} />
+                <div className="grid grid-cols-2 gap-4">
+                  <input aria-label="Price" required type="number" placeholder="Price" className="border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, price: e.target.value})} />
+                  <input aria-label="Schedule" required type="text" placeholder="Schedule" className="border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, schedule: e.target.value})} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <input aria-label="Start" required type="date" className="border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, startDate: e.target.value})} />
+                  <input aria-label="End" required type="date" className="border p-3 rounded-lg" onChange={e => setNewCourse({...newCourse, endDate: e.target.value})} />
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <label className="block text-xs font-bold text-blue-800 mb-1">GOOGLE CLASSROOM LINK (Optional)</label>
+                  <input aria-label="Link" placeholder="e.g. https://classroom.google.com/c/..." className="w-full border p-3 rounded-lg bg-white" onChange={e => setNewCourse({...newCourse, classroomUrl: e.target.value})} />
+                </div>
+                <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Publish Course</button>
+              </form>
+            )}
+
+            <div className="grid gap-4">
+              {courses.map(course => (
+                <div key={course.id} className="bg-white p-6 rounded-xl shadow-sm border flex justify-between">
+                  <div><h4 className="font-bold">{course.title}</h4><p className="text-xs text-gray-500">{new Date(course.startDate).toLocaleDateString()} - {new Date(course.endDate).toLocaleDateString()}</p></div>
+                  <button aria-label="Delete" onClick={() => handleDeleteCourse(course.id)} className="text-red-400"><Trash2 size={20}/></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: MESSAGES (CHAT) */}
+        {activeTab === 'messages' && (
+          <div className="bg-white rounded-2xl shadow-sm border p-1 animate-in fade-in h-[600px]">
+            <ChatWindow myId={teacher.id} myType="teacher" />
+          </div>
+        )}
+
+        {/* TAB 4: WALLET */}
+        {activeTab === 'wallet' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-8 text-white shadow-lg">
+              <p className="text-green-100 font-bold uppercase text-xs tracking-wider mb-1">Available to Withdraw</p>
+              <h2 className="text-5xl font-bold">${wallet.availableBalance?.toLocaleString()}</h2>
+              <p className="mt-4 text-sm opacity-80">Total Lifetime Earnings: ${wallet.totalEarnings?.toLocaleString()}</p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="font-bold text-lg mb-4 text-gray-800">Request Withdrawal</h3>
+                <div className="space-y-4">
+                  <input aria-label="Bank" className="w-full border p-3 rounded-lg" placeholder="Bank Name" onChange={e => setBankForm({...bankForm, bankName: e.target.value})} />
+                  <input aria-label="Account Num" className="w-full border p-3 rounded-lg" placeholder="Account Number" onChange={e => setBankForm({...bankForm, accountNumber: e.target.value})} />
+                  <input aria-label="Account Name" className="w-full border p-3 rounded-lg" placeholder="Account Name" onChange={e => setBankForm({...bankForm, accountName: e.target.value})} />
+                  <input aria-label="Amount" type="number" className="w-full border p-3 rounded-lg" placeholder="Amount ($)" onChange={e => setBankForm({...bankForm, amount: e.target.value})} />
+                  <button onClick={handleWithdraw} className="w-full bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-gray-800">Withdraw Funds</button>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="font-bold text-lg mb-4 text-gray-800">Payout History</h3>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {wallet.payouts?.length === 0 && <p className="text-gray-400 text-sm">No history yet.</p>}
+                  {wallet.payouts?.map((p: any) => (
+                    <div key={p.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                       <div><p className="font-bold text-gray-900">${p.amount}</p><p className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</p></div>
+                       <span className={`text-xs font-bold px-2 py-1 rounded capitalize ${p.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: BOOST PROFILE */}
+        {activeTab === 'boost' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="grid md:grid-cols-3 gap-4">
+              {/* BRONZE - $10 */}
+              <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-orange-800 font-bold">Bronze</h4><p className="text-2xl font-bold mb-4">$10</p>
+                {/* @ts-ignore */}
+                <PaystackButton email={teacher.email} amount={10 * 100} currency="USD" publicKey={publicKey} text="Buy Bronze" onSuccess={(ref: any) => handlePackageSuccess(ref, 'bronze', 10)} className="w-full bg-orange-100 text-orange-700 font-bold py-3 rounded-lg"/>
+              </div>
+              {/* SILVER - $20 */}
+              <div className="bg-white border rounded-2xl p-6 hover:shadow-lg"><h4 className="text-gray-600 font-bold">Silver</h4><p className="text-2xl font-bold mb-4">$20</p>
+                {/* @ts-ignore */}
+                <PaystackButton email={teacher.email} amount={20 * 100} currency="USD" publicKey={publicKey} text="Buy Silver" onSuccess={(ref: any) => handlePackageSuccess(ref, 'silver', 20)} className="w-full bg-gray-700 text-white font-bold py-3 rounded-lg"/>
+              </div>
+              {/* GOLD - $30 */}
+              <div className="bg-white border-2 border-yellow-400 rounded-2xl p-6 hover:shadow-lg relative"><div className="absolute top-0 right-0 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-bl">BEST</div><h4 className="text-yellow-600 font-bold">Gold</h4><p className="text-2xl font-bold mb-4">$30</p>
+                {/* @ts-ignore */}
+                <PaystackButton email={teacher.email} amount={30 * 100} currency="USD" publicKey={publicKey} text="Buy Gold" onSuccess={(ref: any) => handlePackageSuccess(ref, 'gold', 30)} className="w-full bg-yellow-500 text-white font-bold py-3 rounded-lg"/>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  </div>
+</div>
